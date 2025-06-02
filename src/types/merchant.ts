@@ -16,6 +16,23 @@ export interface KYCData {
   address: string;
   accountNumber: string;
   status: 'verified' | 'pending' | 'rejected';
+  gstNumber: string;
+  panNumber: string;
+  directorDetails: DirectorDetail[];
+  shareholdingDetails: ShareholdingDetail[];
+}
+
+export interface DirectorDetail {
+  name: string;
+  designation: string;
+  panNumber: string;
+  shareholding: string;
+}
+
+export interface ShareholdingDetail {
+  shareholderName: string;
+  sharePercentage: number;
+  shareType: string;
 }
 
 export interface ChatMessage {
@@ -34,4 +51,6 @@ export type OnboardingStep =
   | 'existingCustomer'
   | 'mobileNumber'
   | 'kycConfirmation'
+  | 'pdfGeneration'
+  | 'otpVerification'
   | 'completed';

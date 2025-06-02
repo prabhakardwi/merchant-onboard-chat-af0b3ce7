@@ -1,11 +1,12 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChatMessage from './ChatMessage';
 import ProgressBar from './ProgressBar';
+import OTPVerification from './OTPVerification';
 import { ChatMessage as ChatMessageType, MerchantData, OnboardingStep, KYCData } from '@/types/merchant';
+import { generateMerchantOnboardingPDF } from '@/utils/pdfGenerator';
 
 const ChatBot: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
@@ -18,6 +19,7 @@ const ChatBot: React.FC = () => {
   });
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showOTPVerification, setShowOTPVerification] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -67,7 +69,35 @@ const ChatBot: React.FC = () => {
     registrationNumber: "REG123456789",
     address: "123 Business Street, Commerce City, CC 12345",
     accountNumber: "ACC-789456123",
-    status: 'verified'
+    status: 'verified',
+    gstNumber: "29ABCDE1234F1Z5",
+    panNumber: "ABCDE1234F",
+    directorDetails: [
+      {
+        name: "John Smith",
+        designation: "Managing Director",
+        panNumber: "ABCDE1234F",
+        shareholding: "60%"
+      },
+      {
+        name: "Jane Smith",
+        designation: "Director",
+        panNumber: "FGHIJ5678K",
+        shareholding: "40%"
+      }
+    ],
+    shareholdingDetails: [
+      {
+        shareholderName: "John Smith",
+        sharePercentage: 60,
+        shareType: "Equity Shares"
+      },
+      {
+        shareholderName: "Jane Smith",
+        sharePercentage: 40,
+        shareType: "Equity Shares"
+      }
+    ]
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -165,17 +195,18 @@ const ChatBot: React.FC = () => {
 
       case 'kycConfirmation':
         if (option === "Yes, link this account") {
-          setMerchantData(prev => ({ ...prev, confirmLinking: true }));
+          setMerchantData(prev => ({ ...prev, confirmLinking: true, kycData: mockKYCData }));
           addBotMessage(
-            `Perfect! ✅ Your account has been successfully linked.\n\n` +
-            `📋 Final Summary:\n` +
-            `• Personal Name: ${merchantData.name}\n` +
-            `• New Business: ${merchantData.businessName}\n` +
-            `• Email: ${merchantData.email}\n` +
-            `• Linked Account: ${mockKYCData.accountNumber}\n` +
-            `• Mobile: ${merchantData.mobileNumber}\n\n` +
-            `🚀 Your onboarding is complete! Our team will activate your POS and payment gateway services within 2-4 hours.`
+            `Perfect! ✅ Your account linking is confirmed.\n\n` +
+            `📄 I'm now generating your merchant onboarding document with all your business details including:\n` +
+            `• Business Information\n` +
+            `• GST & PAN Details\n` +
+            `• Director Information\n` +
+            `• Shareholding Structure\n\n` +
+            `The PDF will be downloaded automatically. Please review and we'll proceed with digital sign-off.`,
+            ["Generate PDF & Proceed"]
           );
+          setCurrentStep('pdfGeneration');
         } else {
           setMerchantData(prev => ({ ...prev, confirmLinking: false }));
           addBotMessage(
@@ -188,8 +219,29 @@ const ChatBot: React.FC = () => {
             `• Account Type: New Separate Account\n\n` +
             `Our KYC team will contact you within 24 hours to complete the verification process for your new business account.`
           );
+          setCurrentStep('completed');
         }
-        setCurrentStep('completed');
+        break;
+
+      case 'pdfGeneration':
+        if (option === "Generate PDF & Proceed") {
+          // Generate PDF
+          generateMerchantOnboardingPDF(merchantData);
+          
+          addBotMessage(
+            `📄 PDF downloaded successfully!\n\n` +
+            `🔐 For digital sign-off, I'm sending OTP to:\n` +
+            `📱 Mobile: ${merchantData.mobileNumber}\n` +
+            `📧 Email: ${merchantData.email}\n\n` +
+            `Please enter both OTPs to complete your onboarding.`
+          );
+          
+          // Send OTPs (simulated)
+          setTimeout(() => {
+            setShowOTPVerification(true);
+            setCurrentStep('otpVerification');
+          }, 1000);
+        }
         break;
 
       default:
@@ -197,6 +249,29 @@ const ChatBot: React.FC = () => {
     }
 
     setIsLoading(false);
+  };
+
+  const handleOTPVerifySuccess = () => {
+    setShowOTPVerification(false);
+    addBotMessage(
+      `🎉 Congratulations! Your digital sign-off is complete.\n\n` +
+      `✅ Final Summary:\n` +
+      `• Personal Name: ${merchantData.name}\n` +
+      `• Business: ${merchantData.businessName}\n` +
+      `• Email: ${merchantData.email}\n` +
+      `• Linked Account: ${merchantData.kycData?.accountNumber}\n` +
+      `• Mobile: ${merchantData.mobileNumber}\n` +
+      `• Document Status: Signed & Verified\n\n` +
+      `🚀 Your merchant onboarding is now complete! Our team will activate your POS and payment gateway services within 2-4 hours.`
+    );
+    setCurrentStep('completed');
+  };
+
+  const handleResendOTP = async (type: 'mobile' | 'email') => {
+    addBotMessage(`🔄 Resending OTP to your ${type}...`);
+    // Simulate OTP resend
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    addBotMessage(`✅ OTP sent to your ${type} successfully!`);
   };
 
   return (
@@ -234,10 +309,21 @@ const ChatBot: React.FC = () => {
               </div>
             )}
             
+            {showOTPVerification && (
+              <div className="mb-4">
+                <OTPVerification
+                  mobileNumber={merchantData.mobileNumber || ''}
+                  email={merchantData.email}
+                  onVerifySuccess={handleOTPVerifySuccess}
+                  onResendOTP={handleResendOTP}
+                />
+              </div>
+            )}
+            
             <div ref={messagesEndRef} />
           </CardContent>
 
-          {currentStep !== 'completed' && (
+          {currentStep !== 'completed' && currentStep !== 'otpVerification' && (
             <div className="p-4 border-t bg-white rounded-b-lg">
               <form onSubmit={handleSubmit} className="flex space-x-2">
                 <Input
