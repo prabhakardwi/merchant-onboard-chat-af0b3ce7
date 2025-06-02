@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ChatMessage from './ChatMessage';
 import ProgressBar from './ProgressBar';
 import OTPVerification from './OTPVerification';
+import FileUpload from './FileUpload';
 import { ChatMessage as ChatMessageType, MerchantData, OnboardingStep, KYCData } from '@/types/merchant';
 import { generateMerchantOnboardingPDF } from '@/utils/pdfGenerator';
 
@@ -20,7 +21,23 @@ const ChatBot: React.FC = () => {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showOTPVerification, setShowOTPVerification] = useState(false);
+  const [showFileUpload, setShowFileUpload] = useState(false);
+  const [currentUploadType, setCurrentUploadType] = useState<'gst' | 'pan' | 'incorporation' | 'moa'>('gst');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const businessCategories = [
+    'Retail & Consumer Goods',
+    'Healthcare & Wellness',
+    'Food & Beverage',
+    'Automobile & Transport',
+    'E-commerce & Online Services',
+    'Home & Living',
+    'Financial Services',
+    'Education & Training',
+    'Professional Services',
+    'Telecom & Utilities',
+    'Travel & Entertainment & Events'
+  ];
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -100,6 +117,52 @@ const ChatBot: React.FC = () => {
     ]
   };
 
+  const handleFileUpload = (file: File) => {
+    setShowFileUpload(false);
+    
+    switch (currentUploadType) {
+      case 'gst':
+        setMerchantData(prev => ({ ...prev, gstDocument: file }));
+        addBotMessage(`✅ GST document "${file.name}" uploaded successfully! Now please upload your PAN document.`);
+        setTimeout(() => {
+          setCurrentUploadType('pan');
+          setShowFileUpload(true);
+          setCurrentStep('panUpload');
+        }, 1000);
+        break;
+      case 'pan':
+        setMerchantData(prev => ({ ...prev, panDocument: file }));
+        addBotMessage(`✅ PAN document "${file.name}" uploaded successfully! Now please upload your Incorporation Certificate.`);
+        setTimeout(() => {
+          setCurrentUploadType('incorporation');
+          setShowFileUpload(true);
+          setCurrentStep('incorporationUpload');
+        }, 1000);
+        break;
+      case 'incorporation':
+        setMerchantData(prev => ({ ...prev, incorporationCertificate: file }));
+        addBotMessage(`✅ Incorporation Certificate "${file.name}" uploaded successfully! Finally, please upload your MOA document.`);
+        setTimeout(() => {
+          setCurrentUploadType('moa');
+          setShowFileUpload(true);
+          setCurrentStep('moaUpload');
+        }, 1000);
+        break;
+      case 'moa':
+        setMerchantData(prev => ({ ...prev, moaDocument: file }));
+        addBotMessage(`✅ MOA document "${file.name}" uploaded successfully!`);
+        setTimeout(() => {
+          addBotMessage(
+            `🔍 Thank you for providing all the required documents! We are now evaluating the details you provided...\n\n` +
+            `📄 Here is your application PDF document with all the information. Please click below to download and verify the same.`,
+            ["Download Application PDF"]
+          );
+          setCurrentStep('evaluation');
+        }, 2000);
+        break;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim()) return;
@@ -132,6 +195,22 @@ const ChatBot: React.FC = () => {
         setMerchantData(prev => ({ ...prev, email: userInput }));
         addBotMessage("Perfect! Are you an existing customer with us?", ["Yes, I am", "No, I'm new"]);
         setCurrentStep('existingCustomer');
+        break;
+
+      case 'businessCategory':
+        setMerchantData(prev => ({ ...prev, businessCategory: userInput }));
+        addBotMessage("Great choice! What's your business annual turnover? (e.g., 1-5 Cr, 5-10 Cr, 10+ Cr)");
+        setCurrentStep('annualTurnover');
+        break;
+
+      case 'annualTurnover':
+        setMerchantData(prev => ({ ...prev, annualTurnover: userInput }));
+        addBotMessage("Perfect! Now I need to collect some important documents. Let's start with your GST certificate. Please upload it below:");
+        setTimeout(() => {
+          setCurrentUploadType('gst');
+          setShowFileUpload(true);
+          setCurrentStep('gstUpload');
+        }, 1000);
         break;
 
       case 'mobileNumber':
@@ -181,13 +260,33 @@ const ChatBot: React.FC = () => {
         } else {
           setMerchantData(prev => ({ ...prev, isExistingCustomer: false }));
           addBotMessage(
-            `Welcome aboard! 🎉 Thank you for choosing our services.\n\n` +
-            `📋 Summary:\n` +
-            `• Name: ${merchantData.name}\n` +
+            `Welcome to our platform! 🎉 Since you're a new customer, I need to collect some additional business information.\n\n` +
+            `Please select your business category:`,
+            businessCategories
+          );
+          setCurrentStep('businessCategory');
+        }
+        break;
+
+      case 'businessCategory':
+        setMerchantData(prev => ({ ...prev, businessCategory: option }));
+        addBotMessage("Excellent choice! What's your business annual turnover? Please type your response (e.g., 1-5 Cr, 5-10 Cr, 10+ Cr)");
+        setCurrentStep('annualTurnover');
+        break;
+
+      case 'evaluation':
+        if (option === "Download Application PDF") {
+          generateMerchantOnboardingPDF(merchantData);
+          addBotMessage(
+            `📄 PDF downloaded successfully!\n\n` +
+            `✅ Application Summary:\n` +
+            `• Personal Name: ${merchantData.name}\n` +
             `• Business: ${merchantData.businessName}\n` +
             `• Email: ${merchantData.email}\n` +
-            `• New Customer: Yes\n\n` +
-            `Our team will contact you within 24 hours to complete your KYC verification and set up your POS and payment gateway services!`
+            `• Category: ${merchantData.businessCategory}\n` +
+            `• Turnover: ${merchantData.annualTurnover}\n` +
+            `• Documents: All uploaded ✓\n\n` +
+            `🎉 Your application has been submitted successfully! Our team will review your documents and contact you within 2-3 business days for the next steps.`
           );
           setCurrentStep('completed');
         }
@@ -225,7 +324,6 @@ const ChatBot: React.FC = () => {
 
       case 'pdfGeneration':
         if (option === "Generate PDF & Proceed") {
-          // Generate PDF
           generateMerchantOnboardingPDF(merchantData);
           
           addBotMessage(
@@ -236,7 +334,6 @@ const ChatBot: React.FC = () => {
             `Please enter both OTPs to complete your onboarding.`
           );
           
-          // Send OTPs (simulated)
           setTimeout(() => {
             setShowOTPVerification(true);
             setCurrentStep('otpVerification');
@@ -269,9 +366,28 @@ const ChatBot: React.FC = () => {
 
   const handleResendOTP = async (type: 'mobile' | 'email') => {
     addBotMessage(`🔄 Resending OTP to your ${type}...`);
-    // Simulate OTP resend
     await new Promise(resolve => setTimeout(resolve, 1000));
     addBotMessage(`✅ OTP sent to your ${type} successfully!`);
+  };
+
+  const getUploadLabel = () => {
+    switch (currentUploadType) {
+      case 'gst': return 'Upload GST Certificate';
+      case 'pan': return 'Upload PAN Document';
+      case 'incorporation': return 'Upload Incorporation Certificate';
+      case 'moa': return 'Upload MOA Document';
+      default: return 'Upload Document';
+    }
+  };
+
+  const getUploadDescription = () => {
+    switch (currentUploadType) {
+      case 'gst': return 'Please upload your GST registration certificate';
+      case 'pan': return 'Please upload your business PAN card or certificate';
+      case 'incorporation': return 'Please upload your certificate of incorporation';
+      case 'moa': return 'Please upload your Memorandum of Association';
+      default: return 'Please upload the required document';
+    }
   };
 
   return (
@@ -320,10 +436,21 @@ const ChatBot: React.FC = () => {
               </div>
             )}
             
+            {showFileUpload && (
+              <div className="mb-4">
+                <FileUpload
+                  onFileSelect={handleFileUpload}
+                  label={getUploadLabel()}
+                  description={getUploadDescription()}
+                  accept=".pdf,.jpg,.jpeg,.png"
+                />
+              </div>
+            )}
+            
             <div ref={messagesEndRef} />
           </CardContent>
 
-          {currentStep !== 'completed' && currentStep !== 'otpVerification' && (
+          {currentStep !== 'completed' && currentStep !== 'otpVerification' && !showFileUpload && (
             <div className="p-4 border-t bg-white rounded-b-lg">
               <form onSubmit={handleSubmit} className="flex space-x-2">
                 <Input

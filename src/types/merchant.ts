@@ -7,6 +7,12 @@ export interface MerchantData {
   mobileNumber?: string;
   kycData?: KYCData;
   confirmLinking?: boolean;
+  businessCategory?: string;
+  annualTurnover?: string;
+  gstDocument?: File;
+  panDocument?: File;
+  incorporationCertificate?: File;
+  moaDocument?: File;
 }
 
 export interface KYCData {
@@ -51,6 +57,13 @@ export type OnboardingStep =
   | 'existingCustomer'
   | 'mobileNumber'
   | 'kycConfirmation'
+  | 'businessCategory'
+  | 'annualTurnover'
+  | 'gstUpload'
+  | 'panUpload'
+  | 'incorporationUpload'
+  | 'moaUpload'
+  | 'evaluation'
   | 'pdfGeneration'
   | 'otpVerification'
   | 'completed';
