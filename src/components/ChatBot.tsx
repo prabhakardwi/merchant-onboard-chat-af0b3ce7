@@ -25,21 +25,8 @@ const ChatBot: React.FC = () => {
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [currentUploadType, setCurrentUploadType] = useState<'gst' | 'pan' | 'incorporation' | 'moa'>('gst');
   const [isAIMode, setIsAIMode] = useState(false);
+  const [messageCounter, setMessageCounter] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const businessCategories = [
-    'Retail & Consumer Goods',
-    'Healthcare & Wellness',
-    'Food & Beverage',
-    'Automobile & Transport',
-    'E-commerce & Online Services',
-    'Home & Living',
-    'Financial Services',
-    'Education & Training',
-    'Professional Services',
-    'Telecom & Utilities',
-    'Travel & Entertainment & Events'
-  ];
 
   // Enhanced mock KYC data with more comprehensive information
   const mockKYCData: KYCData = {
@@ -90,6 +77,20 @@ const ChatBot: React.FC = () => {
     ]
   };
 
+  const businessCategories = [
+    'Retail & Consumer Goods',
+    'Healthcare & Wellness',
+    'Food & Beverage',
+    'Automobile & Transport',
+    'E-commerce & Online Services',
+    'Home & Living',
+    'Financial Services',
+    'Education & Training',
+    'Professional Services',
+    'Telecom & Utilities',
+    'Travel & Entertainment & Events'
+  ];
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -111,8 +112,9 @@ const ChatBot: React.FC = () => {
   }, []);
 
   const addBotMessage = (text: string, options: string[] = [], isAIResponse = false) => {
+    setMessageCounter(prev => prev + 1);
     const message: ChatMessageType = {
-      id: Date.now().toString(),
+      id: `bot-${Date.now()}-${messageCounter}`,
       text,
       isBot: true,
       timestamp: new Date(),
@@ -123,8 +125,9 @@ const ChatBot: React.FC = () => {
   };
 
   const addUserMessage = (text: string) => {
+    setMessageCounter(prev => prev + 1);
     const message: ChatMessageType = {
-      id: Date.now().toString(),
+      id: `user-${Date.now()}-${messageCounter}`,
       text,
       isBot: false,
       timestamp: new Date(),
@@ -132,7 +135,26 @@ const ChatBot: React.FC = () => {
     setMessages(prev => [...prev, message]);
   };
 
+  const isQuestionLike = (text: string): boolean => {
+    const lowerText = text.toLowerCase().trim();
+    
+    // Check if it ends with a question mark
+    if (lowerText.endsWith('?')) {
+      return true;
+    }
+    
+    // Check if it starts with common question words
+    const questionStarters = [
+      'what', 'how', 'when', 'where', 'why', 'which', 'who', 'whom', 'whose',
+      'can', 'could', 'would', 'should', 'will', 'do', 'does', 'did', 'is', 'are',
+      'was', 'were', 'am', 'has', 'have', 'had', 'may', 'might', 'shall'
+    ];
+    
+    return questionStarters.some(starter => lowerText.startsWith(starter + ' '));
+  };
+
   const handleAIQuestion = (question: string) => {
+    console.log('Handling AI question:', question);
     const aiResponse = getMerchantOnboardingResponse(question);
     addBotMessage(aiResponse, ["Continue with onboarding", "Ask another question"], true);
     setIsAIMode(true);
@@ -240,13 +262,19 @@ const ChatBot: React.FC = () => {
 
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Check if user is asking a question (contains question words or ends with ?)
-    const questionWords = ['what', 'how', 'when', 'where', 'why', 'which', 'who', 'can', 'do', 'is', 'are', 'will'];
-    const isQuestion = userInput.endsWith('?') || 
-                      questionWords.some(word => userInput.toLowerCase().startsWith(word + ' '));
-
-    // If it's a question and we're not in a critical step, provide AI help
-    if (isQuestion && !['otpVerification', 'completed'].includes(currentStep) && !showFileUpload && !showOTPVerification) {
+    // Improved question detection - check if user is asking a question
+    const isQuestion = isQuestionLike(userInput);
+    
+    // If it's a question and we're not in critical steps, provide AI help
+    const criticalSteps = ['otpVerification', 'completed'];
+    const canUseAI = !criticalSteps.includes(currentStep) && !showFileUpload && !showOTPVerification;
+    
+    console.log('User input:', userInput);
+    console.log('Is question:', isQuestion);
+    console.log('Can use AI:', canUseAI);
+    console.log('Current step:', currentStep);
+    
+    if (isQuestion && canUseAI) {
       handleAIQuestion(userInput);
       setIsLoading(false);
       return;
@@ -254,14 +282,14 @@ const ChatBot: React.FC = () => {
 
     // Handle AI mode responses
     if (currentStep === 'aiHelp') {
-      if (userInput.toLowerCase().includes('question') || isQuestion) {
+      if (isQuestion) {
         handleAIQuestion(userInput);
         setIsLoading(false);
         return;
       } else {
         // User wants to continue with onboarding
         setIsAIMode(false);
-        addBotMessage("Great! Let's continue with your onboarding. Where were we...");
+        addBotMessage("Great! Let's continue with your onboarding.");
         // Determine the next step based on current merchant data
         if (!merchantData.name) {
           addBotMessage("What's your full name?");
@@ -361,7 +389,7 @@ const ChatBot: React.FC = () => {
     // Handle AI mode options
     if (currentStep === 'aiHelp') {
       if (option === "Ask another question") {
-        addBotMessage("What would you like to know about the merchant onboarding process?");
+        addBotMessage("What would you like to know about the merchant onboarding process?", [], true);
         setIsLoading(false);
         return;
       } else if (option === "Continue with onboarding") {
@@ -377,6 +405,9 @@ const ChatBot: React.FC = () => {
         } else if (!merchantData.email) {
           addBotMessage("What's your business email address?");
           setCurrentStep('email');
+        } else if (!merchantData.isExistingCustomer) {
+          addBotMessage("Are you an existing customer with us?", ["Yes, I am", "No, I'm new"]);
+          setCurrentStep('existingCustomer');
         }
         setIsLoading(false);
         return;
@@ -503,7 +534,7 @@ const ChatBot: React.FC = () => {
     
     // Add congratulatory image first
     const congratsMessage: ChatMessageType = {
-      id: Date.now().toString(),
+      id: `congrats-${Date.now()}`,
       text: '',
       isBot: true,
       timestamp: new Date(),
@@ -598,7 +629,7 @@ const ChatBot: React.FC = () => {
                   onClick={() => {
                     setIsAIMode(true);
                     setCurrentStep('aiHelp');
-                    addBotMessage("🤖 Hi! I'm your AI assistant. Ask me anything about the merchant onboarding process!", ["What documents do I need?", "How long does it take?", "What are the costs?", "Continue with onboarding"]);
+                    addBotMessage("🤖 Hi! I'm your AI assistant. Ask me anything about the merchant onboarding process!", ["What documents do I need?", "How long does it take?", "What are the costs?", "Continue with onboarding"], true);
                   }}
                 >
                   🤖 Ask AI
