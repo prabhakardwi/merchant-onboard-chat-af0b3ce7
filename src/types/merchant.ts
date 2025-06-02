@@ -48,6 +48,7 @@ export interface ChatMessage {
   timestamp: Date;
   options?: string[];
   image?: string;
+  isAIResponse?: boolean;
 }
 
 export type OnboardingStep = 
@@ -67,4 +68,5 @@ export type OnboardingStep =
   | 'evaluation'
   | 'pdfGeneration'
   | 'otpVerification'
-  | 'completed';
+  | 'completed'
+  | 'aiHelp';

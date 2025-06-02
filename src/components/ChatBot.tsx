@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +8,7 @@ import OTPVerification from './OTPVerification';
 import FileUpload from './FileUpload';
 import { ChatMessage as ChatMessageType, MerchantData, OnboardingStep, KYCData } from '@/types/merchant';
 import { generateMerchantOnboardingPDF } from '@/utils/pdfGenerator';
+import { getMerchantOnboardingResponse } from '@/utils/aiHelper';
 
 const ChatBot: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
@@ -24,6 +24,7 @@ const ChatBot: React.FC = () => {
   const [showOTPVerification, setShowOTPVerification] = useState(false);
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [currentUploadType, setCurrentUploadType] = useState<'gst' | 'pan' | 'incorporation' | 'moa'>('gst');
+  const [isAIMode, setIsAIMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const businessCategories = [
@@ -109,13 +110,14 @@ const ChatBot: React.FC = () => {
     }, 1000);
   }, []);
 
-  const addBotMessage = (text: string, options: string[] = []) => {
+  const addBotMessage = (text: string, options: string[] = [], isAIResponse = false) => {
     const message: ChatMessageType = {
       id: Date.now().toString(),
       text,
       isBot: true,
       timestamp: new Date(),
       options,
+      isAIResponse,
     };
     setMessages(prev => [...prev, message]);
   };
@@ -128,6 +130,13 @@ const ChatBot: React.FC = () => {
       timestamp: new Date(),
     };
     setMessages(prev => [...prev, message]);
+  };
+
+  const handleAIQuestion = (question: string) => {
+    const aiResponse = getMerchantOnboardingResponse(question);
+    addBotMessage(aiResponse, ["Continue with onboarding", "Ask another question"], true);
+    setIsAIMode(true);
+    setCurrentStep('aiHelp');
   };
 
   const handleFileUpload = (file: File) => {
@@ -231,6 +240,47 @@ const ChatBot: React.FC = () => {
 
     await new Promise(resolve => setTimeout(resolve, 1000));
 
+    // Check if user is asking a question (contains question words or ends with ?)
+    const questionWords = ['what', 'how', 'when', 'where', 'why', 'which', 'who', 'can', 'do', 'is', 'are', 'will'];
+    const isQuestion = userInput.endsWith('?') || 
+                      questionWords.some(word => userInput.toLowerCase().startsWith(word + ' '));
+
+    // If it's a question and we're not in a critical step, provide AI help
+    if (isQuestion && !['otpVerification', 'completed'].includes(currentStep) && !showFileUpload && !showOTPVerification) {
+      handleAIQuestion(userInput);
+      setIsLoading(false);
+      return;
+    }
+
+    // Handle AI mode responses
+    if (currentStep === 'aiHelp') {
+      if (userInput.toLowerCase().includes('question') || isQuestion) {
+        handleAIQuestion(userInput);
+        setIsLoading(false);
+        return;
+      } else {
+        // User wants to continue with onboarding
+        setIsAIMode(false);
+        addBotMessage("Great! Let's continue with your onboarding. Where were we...");
+        // Determine the next step based on current merchant data
+        if (!merchantData.name) {
+          addBotMessage("What's your full name?");
+          setCurrentStep('name');
+        } else if (!merchantData.businessName) {
+          addBotMessage("What's your business name?");
+          setCurrentStep('businessName');
+        } else if (!merchantData.email) {
+          addBotMessage("What's your business email address?");
+          setCurrentStep('email');
+        } else if (merchantData.isExistingCustomer === undefined) {
+          addBotMessage("Are you an existing customer with us?", ["Yes, I am", "No, I'm new"]);
+          setCurrentStep('existingCustomer');
+        }
+        setIsLoading(false);
+        return;
+      }
+    }
+
     switch (currentStep) {
       case 'name':
         setMerchantData(prev => ({ ...prev, name: userInput }));
@@ -307,6 +357,31 @@ const ChatBot: React.FC = () => {
     setIsLoading(true);
 
     await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Handle AI mode options
+    if (currentStep === 'aiHelp') {
+      if (option === "Ask another question") {
+        addBotMessage("What would you like to know about the merchant onboarding process?");
+        setIsLoading(false);
+        return;
+      } else if (option === "Continue with onboarding") {
+        setIsAIMode(false);
+        addBotMessage("Perfect! Let's continue with your onboarding process.");
+        // Continue from where we left off
+        if (!merchantData.name) {
+          addBotMessage("What's your full name?");
+          setCurrentStep('name');
+        } else if (!merchantData.businessName) {
+          addBotMessage("What's your business name?");
+          setCurrentStep('businessName');
+        } else if (!merchantData.email) {
+          addBotMessage("What's your business email address?");
+          setCurrentStep('email');
+        }
+        setIsLoading(false);
+        return;
+      }
+    }
 
     switch (currentStep) {
       case 'existingCustomer':
@@ -513,7 +588,23 @@ const ChatBot: React.FC = () => {
 
         <Card className="shadow-xl border-0">
           <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
-            <CardTitle className="text-center">Onboarding Assistant</CardTitle>
+            <CardTitle className="text-center flex items-center justify-between">
+              <span>Onboarding Assistant</span>
+              {!isAIMode && currentStep !== 'completed' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-blue-600 border-white hover:bg-blue-50"
+                  onClick={() => {
+                    setIsAIMode(true);
+                    setCurrentStep('aiHelp');
+                    addBotMessage("🤖 Hi! I'm your AI assistant. Ask me anything about the merchant onboarding process!", ["What documents do I need?", "How long does it take?", "What are the costs?", "Continue with onboarding"]);
+                  }}
+                >
+                  🤖 Ask AI
+                </Button>
+              )}
+            </CardTitle>
             <ProgressBar currentStep={currentStep} />
           </CardHeader>
           
@@ -569,7 +660,7 @@ const ChatBot: React.FC = () => {
                 <Input
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  placeholder="Type your response..."
+                  placeholder={isAIMode ? "Ask me anything about merchant onboarding..." : "Type your response..."}
                   disabled={isLoading}
                   className="flex-1"
                 />

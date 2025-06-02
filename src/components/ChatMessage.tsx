@@ -16,7 +16,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onOptionSelect }) =>
       <div
         className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
           message.isBot
-            ? 'bg-white border border-gray-200 text-gray-800 shadow-sm'
+            ? message.isAIResponse
+              ? 'bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 text-gray-800 shadow-sm'
+              : 'bg-white border border-gray-200 text-gray-800 shadow-sm'
             : 'bg-blue-600 text-white shadow-md'
         }`}
       >
@@ -31,9 +33,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onOptionSelect }) =>
         )}
         
         {message.text && (
-          <p className="text-sm leading-relaxed whitespace-pre-line font-medium">
-            {message.text}
-          </p>
+          <div className="text-sm leading-relaxed whitespace-pre-line font-medium">
+            {message.isAIResponse && (
+              <div className="flex items-center gap-2 mb-2 text-purple-600 font-semibold">
+                <span>🤖</span>
+                <span className="text-xs">AI Assistant</span>
+              </div>
+            )}
+            <p>{message.text}</p>
+          </div>
         )}
         
         {message.options && message.options.length > 0 && (
@@ -43,7 +51,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onOptionSelect }) =>
                 key={index}
                 variant="outline"
                 size="sm"
-                className="w-full text-left justify-start hover:bg-blue-50 transition-colors"
+                className={`w-full text-left justify-start transition-colors ${
+                  message.isAIResponse 
+                    ? 'hover:bg-purple-50 border-purple-200' 
+                    : 'hover:bg-blue-50'
+                }`}
                 onClick={() => onOptionSelect?.(option)}
               >
                 {option}
