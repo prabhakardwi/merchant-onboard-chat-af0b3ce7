@@ -374,6 +374,10 @@ const ChatBot: React.FC = () => {
           addBotMessage("Are you an existing customer with us?", ["Yes, I am", "No, I'm new"]);
           setCurrentStep('existingCustomer');
         }
+      } else {
+        // Handle preset AI questions and any other AI question
+        console.log('Processing preset AI question as regular AI question:', option);
+        handleAIQuestion(option);
       }
       setIsLoading(false);
       return;
