@@ -20,7 +20,21 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onOptionSelect }) =>
             : 'bg-blue-600 text-white shadow-md'
         }`}
       >
-        <p className="text-sm leading-relaxed">{message.text}</p>
+        {message.image && (
+          <div className="mb-3">
+            <img 
+              src={message.image} 
+              alt="Congratulations" 
+              className="w-full h-32 object-cover rounded-lg shadow-sm"
+            />
+          </div>
+        )}
+        
+        {message.text && (
+          <p className="text-sm leading-relaxed whitespace-pre-line font-medium">
+            {message.text}
+          </p>
+        )}
         
         {message.options && message.options.length > 0 && (
           <div className="mt-3 space-y-2">

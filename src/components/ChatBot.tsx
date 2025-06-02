@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -421,21 +422,51 @@ const ChatBot: React.FC = () => {
 
   const handleOTPVerifySuccess = () => {
     setShowOTPVerification(false);
-    addBotMessage(
-      `🎉 Congratulations! Digital verification complete.\n\n` +
-      `✅ Final Application Summary:\n` +
-      `• Applicant: ${merchantData.name}\n` +
-      `• Business: ${merchantData.businessName}\n` +
-      `• Email: ${merchantData.email}\n` +
-      `• Mobile: ${merchantData.mobileNumber}\n` +
-      `• Linked Account: ${merchantData.kycData?.accountNumber}\n` +
-      `• GST Number: ${merchantData.kycData?.gstNumber}\n` +
-      `• PAN Number: ${merchantData.kycData?.panNumber}\n` +
-      `• Directors: ${merchantData.kycData?.directorDetails?.length || 0} verified\n` +
-      `• Document Status: Digitally Signed & Verified ✅\n\n` +
-      `🚀 Merchant onboarding complete! POS and payment gateway services will be activated within 2-4 hours.`
-    );
-    setCurrentStep('completed');
+    
+    // Add congratulatory image first
+    const congratsMessage: ChatMessageType = {
+      id: Date.now().toString(),
+      text: '',
+      isBot: true,
+      timestamp: new Date(),
+      image: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=300&fit=crop&crop=center'
+    };
+    setMessages(prev => [...prev, congratsMessage]);
+    
+    // Add formatted success message
+    setTimeout(() => {
+      addBotMessage(
+        `🎉 **CONGRATULATIONS!** 🎉\n\n` +
+        `✅ **Your Merchant Onboarding is Complete!**\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `👤 **Merchant Details:**\n` +
+        `• Name: ${merchantData.name}\n` +
+        `• Business: ${merchantData.businessName}\n` +
+        `• Email: ${merchantData.email}\n` +
+        `• Mobile: ${merchantData.mobileNumber}\n\n` +
+        `🏢 **Account Information:**\n` +
+        `• Linked Account: ${merchantData.kycData?.accountNumber}\n` +
+        `• GST Number: ${merchantData.kycData?.gstNumber}\n` +
+        `• PAN Number: ${merchantData.kycData?.panNumber}\n` +
+        `• Directors Verified: ${merchantData.kycData?.directorDetails?.length || 0}\n\n` +
+        `🔐 **Verification Status:**\n` +
+        `• Documents: ✅ Digitally Signed & Verified\n` +
+        `• OTP Verification: ✅ Successfully Completed\n` +
+        `• KYC Status: ✅ Approved\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `🚀 **What's Next?**\n\n` +
+        `Your POS and Payment Gateway services will be activated within **2-4 hours**.\n\n` +
+        `📧 You'll receive an email with:\n` +
+        `• Account activation details\n` +
+        `• POS setup instructions\n` +
+        `• Payment gateway configuration\n` +
+        `• 24/7 support contact information\n\n` +
+        `🎯 **Welcome to our merchant family!**\n` +
+        `Thank you for choosing us for your payment solutions. We're excited to help grow your business!\n\n` +
+        `📞 Need immediate assistance? Contact our support team at support@merchant.com`
+      );
+      setCurrentStep('completed');
+    }, 1000);
   };
 
   const handleResendOTP = async (type: 'mobile' | 'email') => {
