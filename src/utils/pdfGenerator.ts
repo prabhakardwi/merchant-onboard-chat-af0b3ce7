@@ -1,4 +1,3 @@
-
 import jsPDF from 'jspdf';
 import { MerchantData } from '@/types/merchant';
 
@@ -123,7 +122,11 @@ export const generateMerchantOnboardingPDF = (merchantData: MerchantData): void 
       doc.setFont('helvetica', 'bold');
       doc.text(label, 20, yPosition);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(status.includes('✓') ? 0, 128, 0 : 255, 0, 0);
+      if (status.includes('✓')) {
+        doc.setTextColor(0, 128, 0);
+      } else {
+        doc.setTextColor(255, 0, 0);
+      }
       doc.text(status, 80, yPosition);
       doc.setTextColor(0, 0, 0);
       yPosition += 7;
