@@ -112,6 +112,7 @@ const ChatBot: React.FC = () => {
   }, []);
 
   const addBotMessage = (text: string, options: string[] = [], isAIResponse = false) => {
+    console.log('Adding bot message:', { text: text.substring(0, 100), isAIResponse, options });
     setMessageCounter(prev => prev + 1);
     const message: ChatMessageType = {
       id: `bot-${Date.now()}-${messageCounter}`,
@@ -125,6 +126,7 @@ const ChatBot: React.FC = () => {
   };
 
   const addUserMessage = (text: string) => {
+    console.log('Adding user message:', text);
     setMessageCounter(prev => prev + 1);
     const message: ChatMessageType = {
       id: `user-${Date.now()}-${messageCounter}`,
@@ -135,11 +137,21 @@ const ChatBot: React.FC = () => {
     setMessages(prev => [...prev, message]);
   };
 
-  // Simplified AI question handler
   const handleAIQuestion = (question: string) => {
-    console.log('Handling AI question:', question);
-    const aiResponse = getMerchantOnboardingResponse(question);
-    addBotMessage(aiResponse, ["Continue with onboarding", "Ask another question"], true);
+    console.log('=== AI QUESTION HANDLER ===');
+    console.log('Question received:', question);
+    console.log('Current AI mode:', isAIMode);
+    
+    try {
+      const aiResponse = getMerchantOnboardingResponse(question);
+      console.log('AI response generated:', aiResponse.substring(0, 100) + '...');
+      
+      addBotMessage(aiResponse, ["Continue with onboarding", "Ask another question"], true);
+      console.log('AI message added successfully');
+    } catch (error) {
+      console.error('Error in AI question handler:', error);
+      addBotMessage("I apologize, but I'm having trouble processing your question right now. Please try again or contact support.", ["Continue with onboarding"], true);
+    }
   };
 
   const handleFileUpload = (file: File) => {
@@ -237,21 +249,25 @@ const ChatBot: React.FC = () => {
     if (!inputValue.trim()) return;
 
     const userInput = inputValue.trim();
+    console.log('=== FORM SUBMIT ===');
+    console.log('User input:', userInput);
+    console.log('Current AI mode:', isAIMode);
+    console.log('Current step:', currentStep);
+    
     addUserMessage(userInput);
     setInputValue('');
     setIsLoading(true);
 
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Simplified AI mode handling
     if (isAIMode) {
-      console.log('Processing AI question:', userInput);
+      console.log('Processing as AI question...');
       handleAIQuestion(userInput);
       setIsLoading(false);
       return;
     }
 
-    // Regular onboarding flow
+    console.log('Processing as regular onboarding step...');
     switch (currentStep) {
       case 'name':
         setMerchantData(prev => ({ ...prev, name: userInput }));
@@ -324,18 +340,26 @@ const ChatBot: React.FC = () => {
   };
 
   const handleOptionSelect = async (option: string) => {
+    console.log('=== OPTION SELECT ===');
+    console.log('Option selected:', option);
+    console.log('Current AI mode:', isAIMode);
+    console.log('Current step:', currentStep);
+    
     addUserMessage(option);
     setIsLoading(true);
 
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Handle AI mode options first
     if (isAIMode) {
+      console.log('Handling AI mode option...');
       if (option === "Ask another question") {
+        console.log('User wants to ask another question');
         addBotMessage("What would you like to know about the merchant onboarding process?", [], true);
       } else if (option === "Continue with onboarding") {
+        console.log('User wants to continue onboarding, exiting AI mode');
         setIsAIMode(false);
         addBotMessage("Perfect! Let's continue with your onboarding process.");
+        
         // Determine where to continue based on current data
         if (!merchantData.name) {
           addBotMessage("What's your full name?");
@@ -355,7 +379,7 @@ const ChatBot: React.FC = () => {
       return;
     }
 
-    // Regular onboarding option handling
+    console.log('Handling regular onboarding option...');
     switch (currentStep) {
       case 'existingCustomer':
         if (option === "Yes, I am") {
@@ -551,15 +575,16 @@ const ChatBot: React.FC = () => {
     }
   };
 
-  // Simplified AI mode starter
   const startAIMode = () => {
-    console.log('Starting AI mode');
+    console.log('=== STARTING AI MODE ===');
+    console.log('Setting isAIMode to true');
     setIsAIMode(true);
-    addBotMessage(
-      "🤖 Hi! I'm your AI assistant. Ask me anything about the merchant onboarding process!",
-      ["What documents do I need?", "How long does it take?", "What are the costs?", "Continue with onboarding"],
-      true
-    );
+    
+    const welcomeMessage = "🤖 Hi! I'm your AI assistant. Ask me anything about the merchant onboarding process!";
+    const options = ["What documents do I need?", "How long does it take?", "What are the costs?", "Continue with onboarding"];
+    
+    console.log('Adding AI welcome message');
+    addBotMessage(welcomeMessage, options, true);
   };
 
   return (
