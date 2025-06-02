@@ -39,6 +39,55 @@ const ChatBot: React.FC = () => {
     'Travel & Entertainment & Events'
   ];
 
+  // Enhanced mock KYC data with more comprehensive information
+  const mockKYCData: KYCData = {
+    fullName: "John Smith",
+    businessName: "Smith Electronics Ltd",
+    registrationNumber: "REG123456789",
+    address: "123 Business Street, Commerce City, CC 12345",
+    accountNumber: "ACC-789456123",
+    status: 'verified',
+    gstNumber: "29ABCDE1234F1Z5",
+    panNumber: "ABCDE1234F",
+    directorDetails: [
+      {
+        name: "John Smith",
+        designation: "Managing Director & CEO",
+        panNumber: "ABCDE1234F",
+        shareholding: "60%"
+      },
+      {
+        name: "Jane Smith",
+        designation: "Executive Director",
+        panNumber: "FGHIJ5678K",
+        shareholding: "25%"
+      },
+      {
+        name: "Robert Johnson",
+        designation: "Independent Director",
+        panNumber: "KLMNO9012P",
+        shareholding: "15%"
+      }
+    ],
+    shareholdingDetails: [
+      {
+        shareholderName: "John Smith",
+        sharePercentage: 60,
+        shareType: "Equity Shares"
+      },
+      {
+        shareholderName: "Jane Smith",
+        sharePercentage: 25,
+        shareType: "Equity Shares"
+      },
+      {
+        shareholderName: "Robert Johnson",
+        sharePercentage: 15,
+        shareType: "Preference Shares"
+      }
+    ]
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -80,50 +129,24 @@ const ChatBot: React.FC = () => {
     setMessages(prev => [...prev, message]);
   };
 
-  const mockKYCData: KYCData = {
-    fullName: "John Smith",
-    businessName: "Smith Electronics Ltd",
-    registrationNumber: "REG123456789",
-    address: "123 Business Street, Commerce City, CC 12345",
-    accountNumber: "ACC-789456123",
-    status: 'verified',
-    gstNumber: "29ABCDE1234F1Z5",
-    panNumber: "ABCDE1234F",
-    directorDetails: [
-      {
-        name: "John Smith",
-        designation: "Managing Director",
-        panNumber: "ABCDE1234F",
-        shareholding: "60%"
-      },
-      {
-        name: "Jane Smith",
-        designation: "Director",
-        panNumber: "FGHIJ5678K",
-        shareholding: "40%"
-      }
-    ],
-    shareholdingDetails: [
-      {
-        shareholderName: "John Smith",
-        sharePercentage: 60,
-        shareType: "Equity Shares"
-      },
-      {
-        shareholderName: "Jane Smith",
-        sharePercentage: 40,
-        shareType: "Equity Shares"
-      }
-    ]
-  };
-
   const handleFileUpload = (file: File) => {
     setShowFileUpload(false);
     
+    // Simulate document processing and data extraction
+    console.log(`Processing ${currentUploadType} document: ${file.name}`);
+    
     switch (currentUploadType) {
       case 'gst':
-        setMerchantData(prev => ({ ...prev, gstDocument: file }));
-        addBotMessage(`✅ GST document "${file.name}" uploaded successfully! Now please upload your PAN document.`);
+        setMerchantData(prev => ({ 
+          ...prev, 
+          gstDocument: file,
+          // Simulate extracting GST number from document
+          kycData: prev.kycData ? {
+            ...prev.kycData,
+            gstNumber: "29ABCDE1234F1Z5"
+          } : undefined
+        }));
+        addBotMessage(`✅ GST document "${file.name}" uploaded successfully! GST Number extracted: 29ABCDE1234F1Z5. Now please upload your PAN document.`);
         setTimeout(() => {
           setCurrentUploadType('pan');
           setShowFileUpload(true);
@@ -131,8 +154,15 @@ const ChatBot: React.FC = () => {
         }, 1000);
         break;
       case 'pan':
-        setMerchantData(prev => ({ ...prev, panDocument: file }));
-        addBotMessage(`✅ PAN document "${file.name}" uploaded successfully! Now please upload your Incorporation Certificate.`);
+        setMerchantData(prev => ({ 
+          ...prev, 
+          panDocument: file,
+          kycData: prev.kycData ? {
+            ...prev.kycData,
+            panNumber: "ABCDE1234F"
+          } : undefined
+        }));
+        addBotMessage(`✅ PAN document "${file.name}" uploaded successfully! PAN Number extracted: ABCDE1234F. Now please upload your Incorporation Certificate.`);
         setTimeout(() => {
           setCurrentUploadType('incorporation');
           setShowFileUpload(true);
@@ -140,8 +170,16 @@ const ChatBot: React.FC = () => {
         }, 1000);
         break;
       case 'incorporation':
-        setMerchantData(prev => ({ ...prev, incorporationCertificate: file }));
-        addBotMessage(`✅ Incorporation Certificate "${file.name}" uploaded successfully! Finally, please upload your MOA document.`);
+        setMerchantData(prev => ({ 
+          ...prev, 
+          incorporationCertificate: file,
+          kycData: prev.kycData ? {
+            ...prev.kycData,
+            registrationNumber: "REG123456789",
+            businessName: prev.businessName
+          } : undefined
+        }));
+        addBotMessage(`✅ Incorporation Certificate "${file.name}" uploaded successfully! Registration Number extracted: REG123456789. Finally, please upload your MOA document.`);
         setTimeout(() => {
           setCurrentUploadType('moa');
           setShowFileUpload(true);
@@ -149,13 +187,31 @@ const ChatBot: React.FC = () => {
         }, 1000);
         break;
       case 'moa':
-        setMerchantData(prev => ({ ...prev, moaDocument: file }));
-        addBotMessage(`✅ MOA document "${file.name}" uploaded successfully!`);
+        // Complete document processing with full KYC data
+        const completeKYCData = {
+          ...mockKYCData,
+          fullName: merchantData.name,
+          businessName: merchantData.businessName
+        };
+        
+        setMerchantData(prev => ({ 
+          ...prev, 
+          moaDocument: file,
+          kycData: completeKYCData
+        }));
+        
+        addBotMessage(`✅ MOA document "${file.name}" uploaded successfully! Director and shareholding details extracted.`);
         setTimeout(() => {
           addBotMessage(
-            `🔍 Thank you for providing all the required documents! We are now evaluating the details you provided...\n\n` +
-            `📄 Here is your application PDF document with all the information. Please click below to download and verify the same.`,
-            ["Download Application PDF"]
+            `🔍 Document processing complete! All business information has been extracted:\n\n` +
+            `📋 Business: ${merchantData.businessName}\n` +
+            `📄 GST: 29ABCDE1234F1Z5\n` +
+            `📄 PAN: ABCDE1234F\n` +
+            `📄 Registration: REG123456789\n` +
+            `👥 Directors: ${completeKYCData.directorDetails.length} directors found\n` +
+            `📊 Shareholding: Complete structure extracted\n\n` +
+            `Your comprehensive application PDF is ready for download!`,
+            ["Download Complete Application PDF"]
           );
           setCurrentStep('evaluation');
         }, 2000);
@@ -275,18 +331,18 @@ const ChatBot: React.FC = () => {
         break;
 
       case 'evaluation':
-        if (option === "Download Application PDF") {
+        if (option === "Download Complete Application PDF" || option === "Download Application PDF") {
+          console.log('Generating PDF with merchant data:', merchantData);
           generateMerchantOnboardingPDF(merchantData);
           addBotMessage(
-            `📄 PDF downloaded successfully!\n\n` +
-            `✅ Application Summary:\n` +
-            `• Personal Name: ${merchantData.name}\n` +
-            `• Business: ${merchantData.businessName}\n` +
-            `• Email: ${merchantData.email}\n` +
-            `• Category: ${merchantData.businessCategory}\n` +
-            `• Turnover: ${merchantData.annualTurnover}\n` +
-            `• Documents: All uploaded ✓\n\n` +
-            `🎉 Your application has been submitted successfully! Our team will review your documents and contact you within 2-3 business days for the next steps.`
+            `📄 Complete application PDF downloaded successfully!\n\n` +
+            `✅ Your PDF includes:\n` +
+            `• Personal & Business Information\n` +
+            `• Complete KYC Details (GST, PAN, Registration)\n` +
+            `• Director Information (${merchantData.kycData?.directorDetails?.length || 0} directors)\n` +
+            `• Shareholding Structure\n` +
+            `• Document Upload Status\n\n` +
+            `🎉 Application submitted! Our team will review within 2-3 business days.`
           );
           setCurrentStep('completed');
         }
@@ -294,16 +350,29 @@ const ChatBot: React.FC = () => {
 
       case 'kycConfirmation':
         if (option === "Yes, link this account") {
-          setMerchantData(prev => ({ ...prev, confirmLinking: true, kycData: mockKYCData }));
+          // Ensure complete KYC data is set with user's information
+          const updatedKYCData = {
+            ...mockKYCData,
+            fullName: merchantData.name,
+            businessName: merchantData.businessName
+          };
+          
+          setMerchantData(prev => ({ 
+            ...prev, 
+            confirmLinking: true, 
+            kycData: updatedKYCData 
+          }));
+          
           addBotMessage(
-            `Perfect! ✅ Your account linking is confirmed.\n\n` +
-            `📄 I'm now generating your merchant onboarding document with all your business details including:\n` +
-            `• Business Information\n` +
-            `• GST & PAN Details\n` +
-            `• Director Information\n` +
-            `• Shareholding Structure\n\n` +
-            `The PDF will be downloaded automatically. Please review and we'll proceed with digital sign-off.`,
-            ["Generate PDF & Proceed"]
+            `Perfect! ✅ Account linking confirmed.\n\n` +
+            `📄 Generating comprehensive merchant onboarding document with:\n` +
+            `• Your Business Information\n` +
+            `• KYC Details (GST: ${updatedKYCData.gstNumber}, PAN: ${updatedKYCData.panNumber})\n` +
+            `• Director Information (${updatedKYCData.directorDetails.length} directors)\n` +
+            `• Complete Shareholding Structure\n` +
+            `• Registration Details\n\n` +
+            `Click below to download and proceed with digital verification.`,
+            ["Generate Complete PDF & Proceed"]
           );
           setCurrentStep('pdfGeneration');
         } else {
@@ -316,22 +385,23 @@ const ChatBot: React.FC = () => {
             `• Email: ${merchantData.email}\n` +
             `• Mobile: ${merchantData.mobileNumber}\n` +
             `• Account Type: New Separate Account\n\n` +
-            `Our KYC team will contact you within 24 hours to complete the verification process for your new business account.`
+            `Our KYC team will contact you within 24 hours to complete the verification process.`
           );
           setCurrentStep('completed');
         }
         break;
 
       case 'pdfGeneration':
-        if (option === "Generate PDF & Proceed") {
+        if (option === "Generate Complete PDF & Proceed" || option === "Generate PDF & Proceed") {
+          console.log('Generating comprehensive PDF with all data:', merchantData);
           generateMerchantOnboardingPDF(merchantData);
           
           addBotMessage(
-            `📄 PDF downloaded successfully!\n\n` +
-            `🔐 For digital sign-off, I'm sending OTP to:\n` +
+            `📄 Comprehensive PDF downloaded successfully!\n\n` +
+            `🔐 For digital sign-off and verification, I'm sending OTP to:\n` +
             `📱 Mobile: ${merchantData.mobileNumber}\n` +
             `📧 Email: ${merchantData.email}\n\n` +
-            `Please enter both OTPs to complete your onboarding.`
+            `Please enter both OTPs to complete your merchant onboarding.`
           );
           
           setTimeout(() => {
@@ -351,15 +421,18 @@ const ChatBot: React.FC = () => {
   const handleOTPVerifySuccess = () => {
     setShowOTPVerification(false);
     addBotMessage(
-      `🎉 Congratulations! Your digital sign-off is complete.\n\n` +
-      `✅ Final Summary:\n` +
-      `• Personal Name: ${merchantData.name}\n` +
+      `🎉 Congratulations! Digital verification complete.\n\n` +
+      `✅ Final Application Summary:\n` +
+      `• Applicant: ${merchantData.name}\n` +
       `• Business: ${merchantData.businessName}\n` +
       `• Email: ${merchantData.email}\n` +
-      `• Linked Account: ${merchantData.kycData?.accountNumber}\n` +
       `• Mobile: ${merchantData.mobileNumber}\n` +
-      `• Document Status: Signed & Verified\n\n` +
-      `🚀 Your merchant onboarding is now complete! Our team will activate your POS and payment gateway services within 2-4 hours.`
+      `• Linked Account: ${merchantData.kycData?.accountNumber}\n` +
+      `• GST Number: ${merchantData.kycData?.gstNumber}\n` +
+      `• PAN Number: ${merchantData.kycData?.panNumber}\n` +
+      `• Directors: ${merchantData.kycData?.directorDetails?.length || 0} verified\n` +
+      `• Document Status: Digitally Signed & Verified ✅\n\n` +
+      `🚀 Merchant onboarding complete! POS and payment gateway services will be activated within 2-4 hours.`
     );
     setCurrentStep('completed');
   };
