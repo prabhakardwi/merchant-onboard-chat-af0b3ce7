@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -135,30 +136,10 @@ const ChatBot: React.FC = () => {
     setMessages(prev => [...prev, message]);
   };
 
-  const isQuestionLike = (text: string): boolean => {
-    const lowerText = text.toLowerCase().trim();
-    
-    // Check if it ends with a question mark
-    if (lowerText.endsWith('?')) {
-      return true;
-    }
-    
-    // Check if it starts with common question words
-    const questionStarters = [
-      'what', 'how', 'when', 'where', 'why', 'which', 'who', 'whom', 'whose',
-      'can', 'could', 'would', 'should', 'will', 'do', 'does', 'did', 'is', 'are',
-      'was', 'were', 'am', 'has', 'have', 'had', 'may', 'might', 'shall'
-    ];
-    
-    return questionStarters.some(starter => lowerText.startsWith(starter + ' '));
-  };
-
   const handleAIQuestion = (question: string) => {
     console.log('Handling AI question:', question);
     const aiResponse = getMerchantOnboardingResponse(question);
     addBotMessage(aiResponse, ["Continue with onboarding", "Ask another question"], true);
-    setIsAIMode(true);
-    setCurrentStep('aiHelp');
   };
 
   const handleFileUpload = (file: File) => {
@@ -262,53 +243,15 @@ const ChatBot: React.FC = () => {
 
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Improved question detection - check if user is asking a question
-    const isQuestion = isQuestionLike(userInput);
-    
-    // If it's a question and we're not in critical steps, provide AI help
-    const criticalSteps = ['otpVerification', 'completed'];
-    const canUseAI = !criticalSteps.includes(currentStep) && !showFileUpload && !showOTPVerification;
-    
-    console.log('User input:', userInput);
-    console.log('Is question:', isQuestion);
-    console.log('Can use AI:', canUseAI);
-    console.log('Current step:', currentStep);
-    
-    if (isQuestion && canUseAI) {
+    // Handle AI mode - if we're in AI mode, always treat input as a question
+    if (isAIMode) {
+      console.log('In AI mode, handling question:', userInput);
       handleAIQuestion(userInput);
       setIsLoading(false);
       return;
     }
 
-    // Handle AI mode responses
-    if (currentStep === 'aiHelp') {
-      if (isQuestion) {
-        handleAIQuestion(userInput);
-        setIsLoading(false);
-        return;
-      } else {
-        // User wants to continue with onboarding
-        setIsAIMode(false);
-        addBotMessage("Great! Let's continue with your onboarding.");
-        // Determine the next step based on current merchant data
-        if (!merchantData.name) {
-          addBotMessage("What's your full name?");
-          setCurrentStep('name');
-        } else if (!merchantData.businessName) {
-          addBotMessage("What's your business name?");
-          setCurrentStep('businessName');
-        } else if (!merchantData.email) {
-          addBotMessage("What's your business email address?");
-          setCurrentStep('email');
-        } else if (merchantData.isExistingCustomer === undefined) {
-          addBotMessage("Are you an existing customer with us?", ["Yes, I am", "No, I'm new"]);
-          setCurrentStep('existingCustomer');
-        }
-        setIsLoading(false);
-        return;
-      }
-    }
-
+    // Regular onboarding flow
     switch (currentStep) {
       case 'name':
         setMerchantData(prev => ({ ...prev, name: userInput }));
@@ -387,7 +330,7 @@ const ChatBot: React.FC = () => {
     await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Handle AI mode options
-    if (currentStep === 'aiHelp') {
+    if (isAIMode) {
       if (option === "Ask another question") {
         addBotMessage("What would you like to know about the merchant onboarding process?", [], true);
         setIsLoading(false);
@@ -405,7 +348,7 @@ const ChatBot: React.FC = () => {
         } else if (!merchantData.email) {
           addBotMessage("What's your business email address?");
           setCurrentStep('email');
-        } else if (!merchantData.isExistingCustomer) {
+        } else if (merchantData.isExistingCustomer === false) {
           addBotMessage("Are you an existing customer with us?", ["Yes, I am", "No, I'm new"]);
           setCurrentStep('existingCustomer');
         }
@@ -609,6 +552,17 @@ const ChatBot: React.FC = () => {
     }
   };
 
+  const startAIMode = () => {
+    console.log('Starting AI mode');
+    setIsAIMode(true);
+    setCurrentStep('aiHelp');
+    addBotMessage(
+      "🤖 Hi! I'm your AI assistant. Ask me anything about the merchant onboarding process!",
+      ["What documents do I need?", "How long does it take?", "What are the costs?", "Continue with onboarding"],
+      true
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <div className="max-w-4xl mx-auto">
@@ -626,11 +580,7 @@ const ChatBot: React.FC = () => {
                   variant="outline"
                   size="sm"
                   className="text-blue-600 border-white hover:bg-blue-50"
-                  onClick={() => {
-                    setIsAIMode(true);
-                    setCurrentStep('aiHelp');
-                    addBotMessage("🤖 Hi! I'm your AI assistant. Ask me anything about the merchant onboarding process!", ["What documents do I need?", "How long does it take?", "What are the costs?", "Continue with onboarding"], true);
-                  }}
+                  onClick={startAIMode}
                 >
                   🤖 Ask AI
                 </Button>
