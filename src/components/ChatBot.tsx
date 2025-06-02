@@ -336,15 +336,16 @@ const ChatBot: React.FC = () => {
           generateMerchantOnboardingPDF(merchantData);
           addBotMessage(
             `📄 Complete application PDF downloaded successfully!\n\n` +
-            `✅ Your PDF includes:\n` +
-            `• Personal & Business Information\n` +
-            `• Complete KYC Details (GST, PAN, Registration)\n` +
-            `• Director Information (${merchantData.kycData?.directorDetails?.length || 0} directors)\n` +
-            `• Shareholding Structure\n` +
-            `• Document Upload Status\n\n` +
-            `🎉 Application submitted! Our team will review within 2-3 business days.`
+            `🔐 For digital sign-off and verification, I'm sending OTP to:\n` +
+            `📱 Mobile: ${merchantData.mobileNumber || merchantData.email}\n` +
+            `📧 Email: ${merchantData.email}\n\n` +
+            `Please enter both OTPs to complete your merchant onboarding.`
           );
-          setCurrentStep('completed');
+          
+          setTimeout(() => {
+            setShowOTPVerification(true);
+            setCurrentStep('otpVerification');
+          }, 1000);
         }
         break;
 
@@ -501,7 +502,7 @@ const ChatBot: React.FC = () => {
             {showOTPVerification && (
               <div className="mb-4">
                 <OTPVerification
-                  mobileNumber={merchantData.mobileNumber || ''}
+                  mobileNumber={merchantData.mobileNumber || merchantData.email || ''}
                   email={merchantData.email}
                   onVerifySuccess={handleOTPVerifySuccess}
                   onResendOTP={handleResendOTP}
