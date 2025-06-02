@@ -47,6 +47,7 @@ export interface ChatMessage {
   isBot: boolean;
   timestamp: Date;
   options?: string[];
+  image?: string;
 }
 
 export type OnboardingStep = 

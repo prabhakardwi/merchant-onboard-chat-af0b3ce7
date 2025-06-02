@@ -423,6 +423,9 @@ const ChatBot: React.FC = () => {
   const handleOTPVerifySuccess = () => {
     setShowOTPVerification(false);
     
+    // Generate a case number
+    const caseNumber = `CASE${Date.now().toString().slice(-8)}`;
+    
     // Add congratulatory image first
     const congratsMessage: ChatMessageType = {
       id: Date.now().toString(),
@@ -439,6 +442,7 @@ const ChatBot: React.FC = () => {
         `🎉 **CONGRATULATIONS!** 🎉\n\n` +
         `✅ **Your Merchant Onboarding is Complete!**\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `📋 **Case Number: ${caseNumber}**\n\n` +
         `👤 **Merchant Details:**\n` +
         `• Name: ${merchantData.name}\n` +
         `• Business: ${merchantData.businessName}\n` +
@@ -454,6 +458,10 @@ const ChatBot: React.FC = () => {
         `• OTP Verification: ✅ Successfully Completed\n` +
         `• KYC Status: ✅ Approved\n\n` +
         `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `👨‍💼 **Assigned Merchant Representative:**\n` +
+        `• Name: Mr. Devesh Kumar\n` +
+        `• Mobile: +919871299447\n` +
+        `• Mr. Devesh Kumar will contact you soon and keep you posted with the status of your application.\n\n` +
         `🚀 **What's Next?**\n\n` +
         `Your POS and Payment Gateway services will be activated within **2-4 hours**.\n\n` +
         `📧 You'll receive an email with:\n` +
