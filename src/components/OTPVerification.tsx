@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { mail, shield-check } from 'lucide-react';
+import { Mail, ShieldCheck } from 'lucide-react';
 
 interface OTPVerificationProps {
   mobileNumber: string;
@@ -49,7 +49,7 @@ const OTPVerification: React.FC<OTPVerificationProps> = ({
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="text-center">
         <CardTitle className="flex items-center justify-center gap-2">
-          <shield-check className="w-6 h-6 text-green-600" />
+          <ShieldCheck className="w-6 h-6 text-green-600" />
           OTP Verification
         </CardTitle>
         <p className="text-sm text-gray-600">
@@ -61,7 +61,7 @@ const OTPVerification: React.FC<OTPVerificationProps> = ({
         {/* Mobile OTP */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm text-gray-600">
-            <shield-check className="w-4 h-4" />
+            <ShieldCheck className="w-4 h-4" />
             Mobile OTP ({mobileNumber})
           </div>
           <InputOTP
@@ -92,7 +92,7 @@ const OTPVerification: React.FC<OTPVerificationProps> = ({
         {/* Email OTP */}
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm text-gray-600">
-            <mail className="w-4 h-4" />
+            <Mail className="w-4 h-4" />
             Email OTP ({email})
           </div>
           <InputOTP
