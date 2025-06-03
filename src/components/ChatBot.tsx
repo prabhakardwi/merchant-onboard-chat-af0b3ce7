@@ -91,6 +91,45 @@ const ChatBot: React.FC = () => {
     'Travel & Entertainment & Events'
   ];
 
+  const pricingPlans = [
+    {
+      name: "Starter Plan",
+      price: "₹2,999/month",
+      features: [
+        "POS Terminal",
+        "Payment Gateway",
+        "Basic Analytics",
+        "Email Support",
+        "Transaction Fee: 2.5%"
+      ]
+    },
+    {
+      name: "Business Plan",
+      price: "₹4,999/month",
+      features: [
+        "2 POS Terminals",
+        "Advanced Payment Gateway",
+        "Detailed Analytics",
+        "Priority Support",
+        "Transaction Fee: 2.0%",
+        "Inventory Management"
+      ]
+    },
+    {
+      name: "Enterprise Plan",
+      price: "₹8,999/month",
+      features: [
+        "5 POS Terminals",
+        "Premium Payment Gateway",
+        "Advanced Analytics & Reports",
+        "24/7 Phone Support",
+        "Transaction Fee: 1.8%",
+        "Full Inventory Management",
+        "Custom Integrations"
+      ]
+    }
+  ];
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -299,12 +338,41 @@ const ChatBot: React.FC = () => {
 
       case 'annualTurnover':
         setMerchantData(prev => ({ ...prev, annualTurnover: userInput }));
-        addBotMessage("Perfect! Now I need to collect some important documents. Let's start with your GST certificate. Please upload it below:");
+        
+        // Show pricing options after annual turnover
+        const pricingMessage = `Perfect! Based on your business profile, here are our pricing plans:\n\n` +
+          pricingPlans.map((plan, index) => 
+            `**${plan.name}** - ${plan.price}\n` +
+            plan.features.map(feature => `• ${feature}`).join('\n') + '\n'
+          ).join('\n') +
+          `\nWhich plan interests you the most?`;
+          
+        addBotMessage(pricingMessage, pricingPlans.map(plan => plan.name));
+        setCurrentStep('pricingOptions');
+        break;
+
+      case 'negotiation':
+        // Handle negotiation input
+        setMerchantData(prev => ({ ...prev, negotiationRequest: userInput }));
+        
+        addBotMessage(
+          `Thank you for your input! 💰 Let me discuss this with our pricing team...\n\n` +
+          `⏱️ Processing your request: "${userInput}"\n\n` +
+          `I'll get back to you with a customized offer shortly.`
+        );
+        
         setTimeout(() => {
-          setCurrentUploadType('gst');
-          setShowFileUpload(true);
-          setCurrentStep('gstUpload');
-        }, 1000);
+          addBotMessage(
+            `Great news! 🎉 Our team has reviewed your request and we can offer:\n\n` +
+            `✅ **Special Discount**: 15% off for the first 6 months\n` +
+            `✅ **Reduced Transaction Fee**: 0.2% lower than standard rates\n` +
+            `✅ **Free Setup**: No installation charges\n` +
+            `✅ **Extended Trial**: 30-day free trial period\n\n` +
+            `This offer is valid for the next 48 hours. Shall we proceed with the documentation?`,
+            ["Accept this offer", "I need more time to decide", "Discuss further modifications"]
+          );
+          setCurrentStep('negotiationResponse');
+        }, 3000);
         break;
 
       case 'mobileNumber':
@@ -405,6 +473,96 @@ const ChatBot: React.FC = () => {
         setMerchantData(prev => ({ ...prev, businessCategory: option }));
         addBotMessage("Excellent choice! What's your business annual turnover? Please type your response (e.g., 1-5 Cr, 5-10 Cr, 10+ Cr)");
         setCurrentStep('annualTurnover');
+        break;
+
+      case 'pricingOptions':
+        setMerchantData(prev => ({ ...prev, selectedPlan: option }));
+        
+        const selectedPlan = pricingPlans.find(plan => plan.name === option);
+        addBotMessage(
+          `Excellent choice! You've selected the **${option}** at ${selectedPlan?.price}.\n\n` +
+          `💡 **Good news!** We offer flexible pricing and can customize plans based on your specific needs.\n\n` +
+          `Would you like to:\n` +
+          `• Proceed with the standard pricing\n` +
+          `• Discuss custom pricing options\n` +
+          `• Request a special discount\n\n` +
+          `What would you prefer?`,
+          ["Proceed with standard pricing", "Request custom pricing", "Ask for discount", "I need to negotiate"]
+        );
+        setCurrentStep('negotiation');
+        break;
+
+      case 'negotiation':
+        if (option === "Proceed with standard pricing") {
+          addBotMessage(
+            `Perfect! 🎯 You've chosen to proceed with the **${merchantData.selectedPlan}**.\n\n` +
+            `Let's continue with the documentation process. I'll need to collect some important documents.`
+          );
+          setTimeout(() => {
+            addBotMessage("Let's start with your GST certificate. Please upload it below:");
+            setCurrentUploadType('gst');
+            setShowFileUpload(true);
+            setCurrentStep('gstUpload');
+          }, 1000);
+        } else if (option === "Request custom pricing") {
+          addBotMessage(
+            `I'd be happy to help with custom pricing! 💰\n\n` +
+            `Please tell me more about your specific requirements:\n` +
+            `• Expected monthly transaction volume?\n` +
+            `• Number of locations/terminals needed?\n` +
+            `• Any specific integrations required?\n` +
+            `• Timeline for implementation?\n\n` +
+            `Type your requirements and I'll create a customized proposal.`
+          );
+          setCurrentStep('negotiation');
+        } else if (option === "Ask for discount") {
+          addBotMessage(
+            `I understand you're looking for better pricing! 💰\n\n` +
+            `Let me check what discounts we can offer:\n\n` +
+            `✅ **Early Bird Discount**: 10% off for immediate signup\n` +
+            `✅ **Annual Payment**: Additional 15% off for yearly payment\n` +
+            `✅ **Volume Discount**: Based on your transaction volume\n\n` +
+            `Would you like to proceed with these discounts, or do you have other requirements?`,
+            ["Accept early bird discount", "Prefer annual payment discount", "Need volume-based pricing"]
+          );
+          setCurrentStep('negotiationResponse');
+        } else if (option === "I need to negotiate") {
+          addBotMessage(
+            `Absolutely! I'm here to help find the best solution for your business. 🤝\n\n` +
+            `Please share your budget constraints or specific pricing expectations, and I'll work with our team to create a suitable offer.\n\n` +
+            `What are your main concerns or requirements?`
+          );
+          setCurrentStep('negotiation');
+        }
+        break;
+
+      case 'negotiationResponse':
+        if (option === "Accept this offer" || option === "Accept early bird discount" || option === "Prefer annual payment discount") {
+          setMerchantData(prev => ({ ...prev, finalPricing: option }));
+          addBotMessage(
+            `Wonderful! 🎉 Your pricing is confirmed.\n\n` +
+            `Now let's proceed with the documentation. I'll need to collect some important business documents to complete your onboarding.`
+          );
+          setTimeout(() => {
+            addBotMessage("Let's start with your GST certificate. Please upload it below:");
+            setCurrentUploadType('gst');
+            setShowFileUpload(true);
+            setCurrentStep('gstUpload');
+          }, 1000);
+        } else if (option === "I need more time to decide") {
+          addBotMessage(
+            `No problem at all! 😊 Take your time to review our offer.\n\n` +
+            `This special pricing will remain valid for the next 48 hours. You can contact me anytime to proceed.\n\n` +
+            `In the meantime, would you like me to send you a detailed proposal via email?`,
+            ["Yes, email me the proposal", "I'll contact you later", "Continue with standard pricing"]
+          );
+        } else if (option === "Discuss further modifications") {
+          addBotMessage(
+            `Of course! I'm here to find the perfect solution. 🤝\n\n` +
+            `What specific modifications would you like to discuss? Please share your thoughts.`
+          );
+          setCurrentStep('negotiation');
+        }
         break;
 
       case 'evaluation':
