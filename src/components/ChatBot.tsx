@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import ChatMessage from './ChatMessage';
 import ProgressBar from './ProgressBar';
 import OTPVerification from './OTPVerification';
@@ -91,44 +92,66 @@ const ChatBot: React.FC = () => {
     'Travel & Entertainment & Events'
   ];
 
-  const pricingPlans = [
-    {
-      name: "Starter Plan",
-      price: "₹2,999/month",
-      features: [
-        "POS Terminal",
-        "Payment Gateway",
-        "Basic Analytics",
-        "Email Support",
-        "Transaction Fee: 2.5%"
-      ]
-    },
-    {
-      name: "Business Plan",
-      price: "₹4,999/month",
-      features: [
-        "2 POS Terminals",
-        "Advanced Payment Gateway",
-        "Detailed Analytics",
-        "Priority Support",
-        "Transaction Fee: 2.0%",
-        "Inventory Management"
-      ]
-    },
-    {
-      name: "Enterprise Plan",
-      price: "₹8,999/month",
-      features: [
-        "5 POS Terminals",
-        "Premium Payment Gateway",
-        "Advanced Analytics & Reports",
-        "24/7 Phone Support",
-        "Transaction Fee: 1.8%",
-        "Full Inventory Management",
-        "Custom Integrations"
-      ]
-    }
+  // Updated pricing data structure to match the provided table
+  const pricingData = [
+    { service: "Debit Card Txns - Flat Rate - Subject to Business Approval", flat: "", mdrTdr: "1.9", subvention: "", total: "1.9" },
+    { service: "Debit Card Txns - (upto Rs. 2000)- Debit card Pricing", flat: "", mdrTdr: "3", subvention: "", total: "3" },
+    { service: "Debit Card Txns - (Above Rs 2000) - Debit card Pricing", flat: "", mdrTdr: "2.5", subvention: "", total: "2.5" },
+    { service: "Credit Cards - Visa - (Credit Card Pricing)", flat: "", mdrTdr: "2.5", subvention: "", total: "2.5" },
+    { service: "Credit Cards - Master - (Credit Card Pricing)", flat: "", mdrTdr: "2.5", subvention: "", total: "2.5" },
+    { service: "Credit Cards - Diners - (Diners Pricing)", flat: "", mdrTdr: "2.5", subvention: "", total: "2.5" },
+    { service: "Credit Cards -Amex", flat: "", mdrTdr: "2.5", subvention: "", total: "2.5" },
+    { service: "Credit Cards - JCB", flat: "", mdrTdr: "2.5", subvention: "", total: "2.5" },
+    { service: "HDFC NetBanking", flat: "", mdrTdr: "2.5", subvention: "", total: "2.5" },
+    { service: "Axis NetBanking", flat: "", mdrTdr: "2.5", subvention: "", total: "2.5" },
+    { service: "ICICI Netbanking", flat: "", mdrTdr: "2.5", subvention: "", total: "2.5" },
+    { service: "SBI NetBanking", flat: "", mdrTdr: "2.5", subvention: "", total: "2.5" },
+    { service: "All Other Banks NetBanking", flat: "", mdrTdr: "2.5", subvention: "", total: "2.5" },
+    { service: "Multi Bank EMI", flat: "", mdrTdr: "", subvention: "", total: "" }
   ];
+
+  const renderPricingTable = () => {
+    return (
+      <div className="my-4 bg-white rounded-lg border shadow-sm overflow-hidden">
+        <div className="p-4 bg-blue-50 border-b">
+          <h3 className="text-lg font-semibold text-blue-900">💳 Payment Processing Rates</h3>
+          <p className="text-sm text-blue-700 mt-1">All rates are in percentage (%) per transaction</p>
+        </div>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-gray-50">
+                <TableHead className="font-semibold text-gray-900">Payment Method</TableHead>
+                <TableHead className="text-center font-semibold text-gray-900">Flat</TableHead>
+                <TableHead className="text-center font-semibold text-gray-900">MDR/TDR</TableHead>
+                <TableHead className="text-center font-semibold text-gray-900">Subvention</TableHead>
+                <TableHead className="text-center font-semibold text-gray-900 bg-blue-50">Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pricingData.map((row, index) => (
+                <TableRow key={index} className="hover:bg-gray-50">
+                  <TableCell className="font-medium text-sm">{row.service}</TableCell>
+                  <TableCell className="text-center text-sm">{row.flat}</TableCell>
+                  <TableCell className="text-center text-sm font-medium">{row.mdrTdr}</TableCell>
+                  <TableCell className="text-center text-sm">{row.subvention}</TableCell>
+                  <TableCell className="text-center text-sm font-semibold bg-blue-50">{row.total}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="p-4 bg-gray-50 border-t">
+          <div className="text-xs text-gray-600 space-y-1">
+            <p>• <strong>MDR/TDR:</strong> Merchant Discount Rate / Transaction Discount Rate</p>
+            <p>• <strong>Subvention:</strong> Government subsidy or promotional discount</p>
+            <p>• <strong>Total:</strong> Final rate charged to merchant</p>
+            <p>• Rates are subject to business approval and may vary based on transaction volume</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -332,23 +355,46 @@ const ChatBot: React.FC = () => {
 
       case 'businessCategory':
         setMerchantData(prev => ({ ...prev, businessCategory: userInput }));
-        addBotMessage("Great choice! What's your business annual turnover? (e.g., 1-5 Cr, 5-10 Cr, 10+ Cr)");
+        addBotMessage("Great choice! What's your business annual turnover? Please type your response (e.g., 1-5 Cr, 5-10 Cr, 10+ Cr)");
         setCurrentStep('annualTurnover');
         break;
 
       case 'annualTurnover':
         setMerchantData(prev => ({ ...prev, annualTurnover: userInput }));
         
-        // Show pricing options after annual turnover
-        const pricingMessage = `Perfect! Based on your business profile, here are our pricing plans:\n\n` +
-          pricingPlans.map((plan, index) => 
-            `**${plan.name}** - ${plan.price}\n` +
-            plan.features.map(feature => `• ${feature}`).join('\n') + '\n'
-          ).join('\n') +
-          `\nWhich plan interests you the most?`;
-          
-        addBotMessage(pricingMessage, pricingPlans.map(plan => plan.name));
-        setCurrentStep('pricingOptions');
+        // Show detailed pricing table after annual turnover
+        addBotMessage(
+          `Perfect! Based on your business profile, here are our detailed payment processing rates:\n\n` +
+          `Our comprehensive pricing covers all major payment methods including debit cards, credit cards, and net banking. ` +
+          `The rates vary based on the payment method and transaction amount.`
+        );
+        
+        // Add the pricing table as a special message
+        const pricingTableMessage: ChatMessageType = {
+          id: `pricing-table-${Date.now()}`,
+          text: '',
+          isBot: true,
+          timestamp: new Date(),
+        };
+        
+        setMessages(prev => [...prev, {
+          ...pricingTableMessage,
+          text: 'PRICING_TABLE_COMPONENT' // Special marker for rendering the table
+        }]);
+        
+        setTimeout(() => {
+          addBotMessage(
+            `Above you can see our complete pricing structure. The rates are competitive and transparent.\n\n` +
+            `Key highlights:\n` +
+            `• Debit card rates start from 1.9%\n` +
+            `• Credit card rates are standardized at 2.5%\n` +
+            `• All major banks' net banking supported\n` +
+            `• EMI options available\n\n` +
+            `Would you like to proceed with these rates or discuss customization?`,
+            ["Proceed with standard rates", "Request custom pricing", "Ask for discount", "I need to negotiate"]
+          );
+          setCurrentStep('pricingOptions');
+        }, 2000);
         break;
 
       case 'negotiation':
@@ -364,10 +410,10 @@ const ChatBot: React.FC = () => {
         setTimeout(() => {
           addBotMessage(
             `Great news! 🎉 Our team has reviewed your request and we can offer:\n\n` +
-            `✅ **Special Discount**: 15% off for the first 6 months\n` +
-            `✅ **Reduced Transaction Fee**: 0.2% lower than standard rates\n` +
-            `✅ **Free Setup**: No installation charges\n` +
-            `✅ **Extended Trial**: 30-day free trial period\n\n` +
+            `✅ **Special Discount**: 15% off on all transaction rates\n` +
+            `✅ **Volume Discount**: Additional 0.2% reduction for high-volume transactions\n` +
+            `✅ **Free Setup**: No installation or setup charges\n` +
+            `✅ **Extended Support**: 24/7 priority customer support\n\n` +
             `This offer is valid for the next 48 hours. Shall we proceed with the documentation?`,
             ["Accept this offer", "I need more time to decide", "Discuss further modifications"]
           );
@@ -478,22 +524,51 @@ const ChatBot: React.FC = () => {
       case 'pricingOptions':
         setMerchantData(prev => ({ ...prev, selectedPlan: option }));
         
-        const selectedPlan = pricingPlans.find(plan => plan.name === option);
-        addBotMessage(
-          `Excellent choice! You've selected the **${option}** at ${selectedPlan?.price}.\n\n` +
-          `💡 **Good news!** We offer flexible pricing and can customize plans based on your specific needs.\n\n` +
-          `Would you like to:\n` +
-          `• Proceed with the standard pricing\n` +
-          `• Discuss custom pricing options\n` +
-          `• Request a special discount\n\n` +
-          `What would you prefer?`,
-          ["Proceed with standard pricing", "Request custom pricing", "Ask for discount", "I need to negotiate"]
-        );
-        setCurrentStep('negotiation');
+        if (option === "Proceed with standard rates") {
+          addBotMessage(
+            `Perfect! 🎯 You've chosen to proceed with our standard pricing rates.\n\n` +
+            `Let's continue with the documentation process. I'll need to collect some important documents.`
+          );
+          setTimeout(() => {
+            addBotMessage("Let's start with your GST certificate. Please upload it below:");
+            setCurrentUploadType('gst');
+            setShowFileUpload(true);
+            setCurrentStep('gstUpload');
+          }, 1000);
+        } else if (option === "Request custom pricing") {
+          addBotMessage(
+            `I'd be happy to help with custom pricing! 💰\n\n` +
+            `Please tell me more about your specific requirements:\n` +
+            `• Expected monthly transaction volume?\n` +
+            `• Number of locations/terminals needed?\n` +
+            `• Any specific integrations required?\n` +
+            `• Timeline for implementation?\n\n` +
+            `Type your requirements and I'll create a customized proposal.`
+          );
+          setCurrentStep('negotiation');
+        } else if (option === "Ask for discount") {
+          addBotMessage(
+            `I understand you're looking for better pricing! 💰\n\n` +
+            `Let me check what discounts we can offer:\n\n` +
+            `✅ **Early Bird Discount**: 10% off on all transaction rates\n` +
+            `✅ **Annual Payment**: Additional 15% off for yearly payment\n` +
+            `✅ **Volume Discount**: Based on your transaction volume\n\n` +
+            `Would you like to proceed with these discounts, or do you have other requirements?`,
+            ["Accept early bird discount", "Prefer annual payment discount", "Need volume-based pricing"]
+          );
+          setCurrentStep('negotiationResponse');
+        } else if (option === "I need to negotiate") {
+          addBotMessage(
+            `Absolutely! I'm here to help find the best solution for your business. 🤝\n\n` +
+            `Please share your budget constraints or specific pricing expectations, and I'll work with our team to create a suitable offer.\n\n` +
+            `What are your main concerns or requirements?`
+          );
+          setCurrentStep('negotiation');
+        }
         break;
 
       case 'negotiation':
-        if (option === "Proceed with standard pricing") {
+        if (option === "Proceed with standard rates") {
           addBotMessage(
             `Perfect! 🎯 You've chosen to proceed with the **${merchantData.selectedPlan}**.\n\n` +
             `Let's continue with the documentation process. I'll need to collect some important documents.`
@@ -528,7 +603,7 @@ const ChatBot: React.FC = () => {
           setCurrentStep('negotiationResponse');
         } else if (option === "I need to negotiate") {
           addBotMessage(
-            `Absolutely! I'm here to help find the best solution for your business. 🤝\n\n` +
+            `Absolutely! I'm here to help find the best solution. 🤝\n\n` +
             `Please share your budget constraints or specific pricing expectations, and I'll work with our team to create a suitable offer.\n\n` +
             `What are your main concerns or requirements?`
           );
@@ -777,11 +852,17 @@ const ChatBot: React.FC = () => {
           
           <CardContent className="h-96 overflow-y-auto p-6 bg-gray-50">
             {messages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                message={message}
-                onOptionSelect={handleOptionSelect}
-              />
+              message.text === 'PRICING_TABLE_COMPONENT' ? (
+                <div key={message.id} className="mb-4">
+                  {renderPricingTable()}
+                </div>
+              ) : (
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  onOptionSelect={handleOptionSelect}
+                />
+              )
             ))}
             
             {isLoading && (
