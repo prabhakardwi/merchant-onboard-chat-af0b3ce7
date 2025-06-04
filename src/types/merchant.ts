@@ -9,6 +9,9 @@ export interface MerchantData {
   confirmLinking?: boolean;
   businessCategory?: string;
   annualTurnover?: string;
+  selectedPlan?: string;
+  negotiationRequest?: string;
+  finalPricing?: string;
   gstDocument?: File;
   panDocument?: File;
   incorporationCertificate?: File;
@@ -61,6 +64,9 @@ export type OnboardingStep =
   | 'kycConfirmation'
   | 'businessCategory'
   | 'annualTurnover'
+  | 'pricingOptions'
+  | 'negotiation'
+  | 'negotiationResponse'
   | 'gstUpload'
   | 'panUpload'
   | 'incorporationUpload'
