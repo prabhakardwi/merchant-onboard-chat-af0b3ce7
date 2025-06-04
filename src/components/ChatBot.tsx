@@ -7,6 +7,7 @@ import ChatMessage from './ChatMessage';
 import ProgressBar from './ProgressBar';
 import OTPVerification from './OTPVerification';
 import FileUpload from './FileUpload';
+import VoiceInput from './VoiceInput';
 import { ChatMessage as ChatMessageType, MerchantData, OnboardingStep, KYCData } from '@/types/merchant';
 import { generateMerchantOnboardingPDF } from '@/utils/pdfGenerator';
 import { getMerchantOnboardingResponse } from '@/utils/aiHelper';
@@ -304,6 +305,18 @@ const ChatBot: React.FC = () => {
         }, 2000);
         break;
     }
+  };
+
+  // Handle voice input
+  const handleVoiceInput = (voiceText: string) => {
+    console.log('Voice input received:', voiceText);
+    setInputValue(voiceText);
+    
+    // Auto-submit the voice input after a short delay
+    setTimeout(() => {
+      const event = new Event('submit') as any;
+      handleSubmit(event);
+    }, 500);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -911,6 +924,11 @@ const ChatBot: React.FC = () => {
                   placeholder={isAIMode ? "Ask me anything about merchant onboarding..." : "Type your response..."}
                   disabled={isLoading}
                   className="flex-1"
+                />
+                <VoiceInput
+                  onVoiceInput={handleVoiceInput}
+                  disabled={isLoading}
+                  placeholder={isAIMode ? "Ask me anything..." : "Speak your response..."}
                 />
                 <Button 
                   type="submit" 
