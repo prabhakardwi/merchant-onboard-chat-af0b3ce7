@@ -93,6 +93,62 @@ const ChatBot: React.FC = () => {
     'Travel & Entertainment & Events'
   ];
 
+  // POS Machine Options
+  const posOptions = [
+    {
+      name: "PAX A920 Pro",
+      type: "Android POS Terminal",
+      features: ["7-inch touchscreen", "4G/WiFi connectivity", "Built-in printer", "NFC enabled"],
+      price: "₹15,000"
+    },
+    {
+      name: "Ingenico Move/5000",
+      type: "Portable POS",
+      features: ["Compact design", "Long battery life", "Contactless payments", "Dual connectivity"],
+      price: "₹8,500"
+    },
+    {
+      name: "Verifone V240m",
+      type: "Countertop Terminal",
+      features: ["EMV certified", "Fast processing", "Easy integration", "Secure transactions"],
+      price: "₹6,200"
+    },
+    {
+      name: "PAX S920",
+      type: "Smart POS",
+      features: ["Android OS", "Multiple payment options", "App ecosystem", "Cloud connectivity"],
+      price: "₹12,800"
+    }
+  ];
+
+  // Payment Gateway Plans
+  const pgPlans = [
+    {
+      name: "Starter Plan",
+      type: "Small Business",
+      features: ["Up to 1000 transactions/month", "Basic analytics", "Email support", "Standard checkout"],
+      pricing: "2.5% per transaction"
+    },
+    {
+      name: "Business Plan",
+      type: "Growing Business",
+      features: ["Up to 10,000 transactions/month", "Advanced analytics", "Phone & email support", "Custom checkout"],
+      pricing: "2.2% per transaction"
+    },
+    {
+      name: "Enterprise Plan",
+      type: "Large Business",
+      features: ["Unlimited transactions", "Real-time reporting", "Dedicated support", "White-label solution"],
+      pricing: "1.9% per transaction"
+    },
+    {
+      name: "Premium Plan",
+      type: "Enterprise",
+      features: ["Volume discounts", "API access", "Multi-currency support", "24/7 priority support"],
+      pricing: "1.7% per transaction"
+    }
+  ];
+
   // Updated pricing data structure to match the provided table
   const pricingData = [
     { service: "Debit Card Txns - Flat Rate - Subject to Business Approval", flat: "", mdrTdr: "1.9", subvention: "", total: "1.9" },
@@ -149,6 +205,66 @@ const ChatBot: React.FC = () => {
             <p>• <strong>Total:</strong> Final rate charged to merchant</p>
             <p>• Rates are subject to business approval and may vary based on transaction volume</p>
           </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPOSOptions = () => {
+    return (
+      <div className="my-4 bg-white rounded-lg border shadow-sm overflow-hidden">
+        <div className="p-4 bg-green-50 border-b">
+          <h3 className="text-lg font-semibold text-green-900">🏪 POS Machine Options</h3>
+          <p className="text-sm text-green-700 mt-1">Choose the perfect POS solution for your business</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+          {posOptions.map((pos, index) => (
+            <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start mb-2">
+                <h4 className="font-semibold text-gray-900">{pos.name}</h4>
+                <span className="text-lg font-bold text-green-600">{pos.price}</span>
+              </div>
+              <p className="text-sm text-gray-600 mb-3">{pos.type}</p>
+              <ul className="space-y-1">
+                {pos.features.map((feature, idx) => (
+                  <li key={idx} className="text-sm text-gray-700 flex items-center">
+                    <span className="text-green-500 mr-2">✓</span>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderPGPlans = () => {
+    return (
+      <div className="my-4 bg-white rounded-lg border shadow-sm overflow-hidden">
+        <div className="p-4 bg-purple-50 border-b">
+          <h3 className="text-lg font-semibold text-purple-900">💳 Payment Gateway Plans</h3>
+          <p className="text-sm text-purple-700 mt-1">Select the best plan for your business needs</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+          {pgPlans.map((plan, index) => (
+            <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start mb-2">
+                <h4 className="font-semibold text-gray-900">{plan.name}</h4>
+                <span className="text-lg font-bold text-purple-600">{plan.pricing}</span>
+              </div>
+              <p className="text-sm text-gray-600 mb-3">{plan.type}</p>
+              <ul className="space-y-1">
+                {plan.features.map((feature, idx) => (
+                  <li key={idx} className="text-sm text-gray-700 flex items-center">
+                    <span className="text-purple-500 mr-2">✓</span>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -362,8 +478,12 @@ const ChatBot: React.FC = () => {
           break;
         }
         setMerchantData(prev => ({ ...prev, email: userInput }));
-        addBotMessage("Perfect! Are you an existing customer with us?", ["Yes, I am", "No, I'm new"]);
-        setCurrentStep('existingCustomer');
+        addBotMessage(
+          `Perfect! Now, which services are you interested in? 🏪💳\n\n` +
+          `We offer both POS machines for in-store payments and Payment Gateway solutions for online transactions.`,
+          ["Payment Gateway only", "POS Machine only", "Both PG and POS", "I need more information"]
+        );
+        setCurrentStep('serviceSelection');
         break;
 
       case 'businessCategory':
@@ -512,8 +632,145 @@ const ChatBot: React.FC = () => {
 
     console.log('Handling regular onboarding option...');
     switch (currentStep) {
+      case 'serviceSelection':
+        if (option === "Payment Gateway only") {
+          setMerchantData(prev => ({ ...prev, serviceType: 'payment-gateway' }));
+          addBotMessage(
+            `Excellent choice! 💳 Payment Gateway solutions are perfect for online businesses.\n\n` +
+            `Here are our Payment Gateway plans tailored for different business needs:`
+          );
+          
+          // Add PG plans table
+          const pgPlansMessage: ChatMessageType = {
+            id: `pg-plans-${Date.now()}`,
+            text: 'PG_PLANS_COMPONENT',
+            isBot: true,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, pgPlansMessage]);
+          
+          setTimeout(() => {
+            addBotMessage(
+              `Which Payment Gateway plan best suits your business requirements?`,
+              ["Starter Plan", "Business Plan", "Enterprise Plan", "Premium Plan", "I need custom pricing"]
+            );
+            setCurrentStep('pgOptions');
+          }, 1500);
+        } else if (option === "POS Machine only") {
+          setMerchantData(prev => ({ ...prev, serviceType: 'pos-machine' }));
+          addBotMessage(
+            `Great! 🏪 POS machines are essential for in-store transactions.\n\n` +
+            `Here are our top POS machine options with different features and pricing:`
+          );
+          
+          // Add POS options table
+          const posOptionsMessage: ChatMessageType = {
+            id: `pos-options-${Date.now()}`,
+            text: 'POS_OPTIONS_COMPONENT',
+            isBot: true,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, posOptionsMessage]);
+          
+          setTimeout(() => {
+            addBotMessage(
+              `Which POS machine would work best for your business?`,
+              ["PAX A920 Pro", "Ingenico Move/5000", "Verifone V240m", "PAX S920", "I need more details"]
+            );
+            setCurrentStep('posOptions');
+          }, 1500);
+        } else if (option === "Both PG and POS") {
+          setMerchantData(prev => ({ ...prev, serviceType: 'both' }));
+          addBotMessage(
+            `Perfect! 🌟 A complete payment solution with both POS and Payment Gateway.\n\n` +
+            `This gives you the flexibility to accept payments both online and offline. Let me show you our combined solutions.`
+          );
+          
+          // Show both options
+          const bothOptionsMessage: ChatMessageType = {
+            id: `both-options-${Date.now()}`,
+            text: 'BOTH_OPTIONS_COMPONENT',
+            isBot: true,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, bothOptionsMessage]);
+          
+          setTimeout(() => {
+            addBotMessage(
+              `Since you need both services, we can offer:\n\n` +
+              `🎯 **Bundle Discount**: 20% off on combined services\n` +
+              `🔧 **Unified Setup**: Single integration for both POS and PG\n` +
+              `📊 **Consolidated Reporting**: One dashboard for all transactions\n\n` +
+              `Would you like to proceed with our bundle package?`,
+              ["Yes, proceed with bundle", "Show me individual pricing", "I need more information"]
+            );
+            setCurrentStep('pricingOptions');
+          }, 2000);
+        } else if (option === "I need more information") {
+          addBotMessage(
+            `Of course! Let me explain our services:\n\n` +
+            `🏪 **POS Machine**: Physical device for in-store card payments\n` +
+            `• Accept all types of cards (Debit/Credit)\n` +
+            `• Contactless payments (NFC)\n` +
+            `• Receipt printing\n` +
+            `• Real-time transaction processing\n\n` +
+            `💳 **Payment Gateway**: Online payment processing\n` +
+            `• Accept payments on your website/app\n` +
+            `• Multiple payment options (Cards, UPI, Wallets)\n` +
+            `• Secure payment processing\n` +
+            `• Integration APIs\n\n` +
+            `Which one interests you more?`,
+            ["Payment Gateway only", "POS Machine only", "Both PG and POS"]
+          );
+        }
+        break;
+
+      case 'posOptions':
+        if (["PAX A920 Pro", "Ingenico Move/5000", "Verifone V240m", "PAX S920"].includes(option)) {
+          setMerchantData(prev => ({ ...prev, selectedPOSModel: option }));
+          addBotMessage(
+            `Excellent choice! ${option} is a great POS solution. 🎉\n\n` +
+            `Now let's check if you're an existing customer with us to proceed further.`,
+            ["Yes, I am existing customer", "No, I'm new customer"]
+          );
+          setCurrentStep('existingCustomer');
+        } else if (option === "I need more details") {
+          addBotMessage(
+            `I'd be happy to provide more details! Please tell me:\n\n` +
+            `• What's your monthly transaction volume?\n` +
+            `• Do you need wireless/portable POS?\n` +
+            `• Any specific features required?\n` +
+            `• Budget range?\n\n` +
+            `Type your requirements and I'll recommend the best option.`
+          );
+        }
+        break;
+
+      case 'pgOptions':
+        if (["Starter Plan", "Business Plan", "Enterprise Plan", "Premium Plan"].includes(option)) {
+          setMerchantData(prev => ({ ...prev, selectedPGPlan: option }));
+          addBotMessage(
+            `Perfect! ${option} selected. 🎯\n\n` +
+            `This plan will be great for your business needs. Let's check your customer status to proceed.`,
+            ["Yes, I am existing customer", "No, I'm new customer"]
+          );
+          setCurrentStep('existingCustomer');
+        } else if (option === "I need custom pricing") {
+          addBotMessage(
+            `Absolutely! I can help with custom pricing. 💰\n\n` +
+            `Please share:\n` +
+            `• Expected monthly transaction volume\n` +
+            `• Average transaction size\n` +
+            `• Special features needed\n` +
+            `• Integration requirements\n\n` +
+            `Type your details and I'll create a customized proposal.`
+          );
+          setCurrentStep('negotiation');
+        }
+        break;
+
       case 'existingCustomer':
-        if (option === "Yes, I am") {
+        if (option === "Yes, I am" || option === "Yes, I am existing customer") {
           setMerchantData(prev => ({ ...prev, isExistingCustomer: true }));
           addBotMessage("Excellent! Please share your registered mobile number so I can fetch your KYC details.");
           setCurrentStep('mobileNumber');
@@ -537,9 +794,9 @@ const ChatBot: React.FC = () => {
       case 'pricingOptions':
         setMerchantData(prev => ({ ...prev, selectedPlan: option }));
         
-        if (option === "Proceed with standard rates") {
+        if (option === "Proceed with standard rates" || option === "Yes, proceed with bundle") {
           addBotMessage(
-            `Perfect! 🎯 You've chosen to proceed with our standard pricing rates.\n\n` +
+            `Perfect! 🎯 You've chosen to proceed with our ${merchantData.serviceType === 'both' ? 'bundle package' : 'standard pricing'}.\n\n` +
             `Let's continue with the documentation process. I'll need to collect some important documents.`
           );
           setTimeout(() => {
@@ -548,7 +805,7 @@ const ChatBot: React.FC = () => {
             setShowFileUpload(true);
             setCurrentStep('gstUpload');
           }, 1000);
-        } else if (option === "Request custom pricing") {
+        } else if (option === "Request custom pricing" || option === "Show me individual pricing") {
           addBotMessage(
             `I'd be happy to help with custom pricing! 💰\n\n` +
             `Please tell me more about your specific requirements:\n` +
@@ -570,53 +827,9 @@ const ChatBot: React.FC = () => {
             ["Accept early bird discount", "Prefer annual payment discount", "Need volume-based pricing"]
           );
           setCurrentStep('negotiationResponse');
-        } else if (option === "I need to negotiate") {
+        } else if (option === "I need to negotiate" || option === "I need more information") {
           addBotMessage(
             `Absolutely! I'm here to help find the best solution for your business. 🤝\n\n` +
-            `Please share your budget constraints or specific pricing expectations, and I'll work with our team to create a suitable offer.\n\n` +
-            `What are your main concerns or requirements?`
-          );
-          setCurrentStep('negotiation');
-        }
-        break;
-
-      case 'negotiation':
-        if (option === "Proceed with standard rates") {
-          addBotMessage(
-            `Perfect! 🎯 You've chosen to proceed with the **${merchantData.selectedPlan}**.\n\n` +
-            `Let's continue with the documentation process. I'll need to collect some important documents.`
-          );
-          setTimeout(() => {
-            addBotMessage("Let's start with your GST certificate. Please upload it below:");
-            setCurrentUploadType('gst');
-            setShowFileUpload(true);
-            setCurrentStep('gstUpload');
-          }, 1000);
-        } else if (option === "Request custom pricing") {
-          addBotMessage(
-            `I'd be happy to help with custom pricing! 💰\n\n` +
-            `Please tell me more about your specific requirements:\n` +
-            `• Expected monthly transaction volume?\n` +
-            `• Number of locations/terminals needed?\n` +
-            `• Any specific integrations required?\n` +
-            `• Timeline for implementation?\n\n` +
-            `Type your requirements and I'll create a customized proposal.`
-          );
-          setCurrentStep('negotiation');
-        } else if (option === "Ask for discount") {
-          addBotMessage(
-            `I understand you're looking for better pricing! 💰\n\n` +
-            `Let me check what discounts we can offer:\n\n` +
-            `✅ **Early Bird Discount**: 10% off for immediate signup\n` +
-            `✅ **Annual Payment**: Additional 15% off for yearly payment\n` +
-            `✅ **Volume Discount**: Based on your transaction volume\n\n` +
-            `Would you like to proceed with these discounts, or do you have other requirements?`,
-            ["Accept early bird discount", "Prefer annual payment discount", "Need volume-based pricing"]
-          );
-          setCurrentStep('negotiationResponse');
-        } else if (option === "I need to negotiate") {
-          addBotMessage(
-            `Absolutely! I'm here to help find the best solution. 🤝\n\n` +
             `Please share your budget constraints or specific pricing expectations, and I'll work with our team to create a suitable offer.\n\n` +
             `What are your main concerns or requirements?`
           );
@@ -864,19 +1077,42 @@ const ChatBot: React.FC = () => {
           </CardHeader>
           
           <CardContent className="h-96 overflow-y-auto p-6 bg-gray-50">
-            {messages.map((message) => (
-              message.text === 'PRICING_TABLE_COMPONENT' ? (
-                <div key={message.id} className="mb-4">
-                  {renderPricingTable()}
-                </div>
-              ) : (
-                <ChatMessage
-                  key={message.id}
-                  message={message}
-                  onOptionSelect={handleOptionSelect}
-                />
-              )
-            ))}
+            {messages.map((message) => {
+              if (message.text === 'PRICING_TABLE_COMPONENT') {
+                return (
+                  <div key={message.id} className="mb-4">
+                    {renderPricingTable()}
+                  </div>
+                );
+              } else if (message.text === 'POS_OPTIONS_COMPONENT') {
+                return (
+                  <div key={message.id} className="mb-4">
+                    {renderPOSOptions()}
+                  </div>
+                );
+              } else if (message.text === 'PG_PLANS_COMPONENT') {
+                return (
+                  <div key={message.id} className="mb-4">
+                    {renderPGPlans()}
+                  </div>
+                );
+              } else if (message.text === 'BOTH_OPTIONS_COMPONENT') {
+                return (
+                  <div key={message.id} className="mb-4">
+                    {renderPOSOptions()}
+                    {renderPGPlans()}
+                  </div>
+                );
+              } else {
+                return (
+                  <ChatMessage
+                    key={message.id}
+                    message={message}
+                    onOptionSelect={handleOptionSelect}
+                  />
+                );
+              }
+            })}
             
             {isLoading && (
               <div className="flex justify-start mb-4">

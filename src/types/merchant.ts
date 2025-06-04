@@ -16,6 +16,9 @@ export interface MerchantData {
   panDocument?: File;
   incorporationCertificate?: File;
   moaDocument?: File;
+  serviceType?: 'payment-gateway' | 'pos-machine' | 'both';
+  selectedPOSModel?: string;
+  selectedPGPlan?: string;
 }
 
 export interface KYCData {
@@ -59,6 +62,9 @@ export type OnboardingStep =
   | 'name'
   | 'businessName'
   | 'email'
+  | 'serviceSelection'
+  | 'posOptions'
+  | 'pgOptions'
   | 'existingCustomer'
   | 'mobileNumber'
   | 'kycConfirmation'
