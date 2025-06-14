@@ -11,6 +11,14 @@ import VoiceInput from './VoiceInput';
 import { ChatMessage as ChatMessageType, MerchantData, OnboardingStep, KYCData } from '@/types/merchant';
 import { generateMerchantOnboardingPDF } from '@/utils/pdfGenerator';
 import { getMerchantOnboardingResponse } from '@/utils/aiHelper';
+import { 
+  saveCustomerData, 
+  getCustomerByEmail, 
+  updateCustomerProgress, 
+  generateCustomerId, 
+  getCustomerSummary,
+  StoredCustomerData 
+} from '@/utils/customerStorage';
 
 const ChatBot: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
@@ -28,6 +36,8 @@ const ChatBot: React.FC = () => {
   const [currentUploadType, setCurrentUploadType] = useState<'gst' | 'pan' | 'incorporation' | 'moa'>('gst');
   const [isAIMode, setIsAIMode] = useState(false);
   const [messageCounter, setMessageCounter] = useState(0);
+  const [currentCustomer, setCurrentCustomer] = useState<StoredCustomerData | null>(null);
+  const [isReturningCustomer, setIsReturningCustomer] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Enhanced mock KYC data with more comprehensive information
@@ -278,6 +288,65 @@ const ChatBot: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
+  const checkForReturningCustomer = () => {
+    const email = inputValue.trim().toLowerCase();
+    const emailRegex = /\S+@\S+\.\S+/.test(email);
+    
+    if (emailRegex) {
+      const existingCustomer = getCustomerByEmail(email);
+      if (existingCustomer) {
+        console.log('Found returning customer:', existingCustomer);
+        setCurrentCustomer(existingCustomer);
+        setIsReturningCustomer(true);
+        
+        // Update merchant data with stored information
+        setMerchantData({
+          name: existingCustomer.name,
+          businessName: existingCustomer.businessName,
+          email: existingCustomer.email,
+          mobileNumber: existingCustomer.mobileNumber,
+          serviceType: existingCustomer.serviceType,
+          selectedPOSModel: existingCustomer.selectedPOSModel,
+          selectedPGPlan: existingCustomer.selectedPGPlan,
+          businessCategory: existingCustomer.businessCategory,
+          annualTurnover: existingCustomer.annualTurnover,
+          isExistingCustomer: true
+        });
+        
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const saveCurrentCustomerData = () => {
+    if (!merchantData.email) return;
+    
+    const customerData: StoredCustomerData = {
+      id: currentCustomer?.id || generateCustomerId(),
+      name: merchantData.name,
+      businessName: merchantData.businessName,
+      email: merchantData.email,
+      mobileNumber: merchantData.mobileNumber,
+      serviceType: merchantData.serviceType,
+      selectedPOSModel: merchantData.selectedPOSModel,
+      selectedPGPlan: merchantData.selectedPGPlan,
+      businessCategory: merchantData.businessCategory,
+      annualTurnover: merchantData.annualTurnover,
+      onboardingStep: currentStep,
+      lastVisit: new Date(),
+      conversationHistory: currentCustomer?.conversationHistory || [],
+      isOnboardingComplete: currentStep === 'completed',
+      assignedRepresentative: currentCustomer?.assignedRepresentative || {
+        name: "Mr. Devesh Kumar",
+        mobile: "+919871299447"
+      }
+    };
+    
+    saveCustomerData(customerData);
+    setCurrentCustomer(customerData);
+  };
+
   useEffect(() => {
     // Initialize with welcome message
     addBotMessage(
@@ -320,9 +389,11 @@ const ChatBot: React.FC = () => {
     console.log('=== AI QUESTION HANDLER ===');
     console.log('Question received:', question);
     console.log('Current AI mode:', isAIMode);
+    console.log('Current customer:', currentCustomer);
     
     try {
-      const aiResponse = getMerchantOnboardingResponse(question);
+      // Pass customer data to AI helper for personalized responses
+      const aiResponse = getMerchantOnboardingResponse(question, currentCustomer);
       console.log('AI response generated:', aiResponse.substring(0, 100) + '...');
       
       addBotMessage(aiResponse, ["Continue with onboarding", "Ask another question"], true);
@@ -421,6 +492,9 @@ const ChatBot: React.FC = () => {
         }, 2000);
         break;
     }
+    
+    // Save progress after file upload
+    saveCurrentCustomerData();
   };
 
   // Handle voice input
@@ -477,19 +551,33 @@ const ChatBot: React.FC = () => {
           addBotMessage("Please enter a valid email address.");
           break;
         }
-        setMerchantData(prev => ({ ...prev, email: userInput }));
-        addBotMessage(
-          `Perfect! Now, which services are you interested in? 🏪💳\n\n` +
-          `We offer both POS machines for in-store payments and Payment Gateway solutions for online transactions.`,
-          ["Payment Gateway only", "POS Machine only", "Both PG and POS", "I need more information"]
-        );
-        setCurrentStep('serviceSelection');
+        
+        // Check for returning customer
+        const isReturning = checkForReturningCustomer();
+        
+        if (isReturning && currentCustomer) {
+          addBotMessage(
+            `🎉 Welcome back! I found your previous information:\n\n${getCustomerSummary(currentCustomer)}\n\n` +
+            `Would you like to continue where you left off or start fresh?`,
+            ["Continue previous session", "Start fresh onboarding", "Check my status"]
+          );
+          setCurrentStep('existingCustomer');
+        } else {
+          setMerchantData(prev => ({ ...prev, email: userInput }));
+          addBotMessage(
+            `Perfect! Now, which services are you interested in? 🏪💳\n\n` +
+            `We offer both POS machines for in-store payments and Payment Gateway solutions for online transactions.`,
+            ["Payment Gateway only", "POS Machine only", "Both PG and POS", "I need more information"]
+          );
+          setCurrentStep('serviceSelection');
+        }
         break;
 
       case 'businessCategory':
         setMerchantData(prev => ({ ...prev, businessCategory: userInput }));
         addBotMessage("Great choice! What's your business annual turnover? Please type your response (e.g., 1-5 Cr, 5-10 Cr, 10+ Cr)");
         setCurrentStep('annualTurnover');
+        saveCurrentCustomerData(); // Save progress
         break;
 
       case 'annualTurnover':
@@ -527,6 +615,7 @@ const ChatBot: React.FC = () => {
             ["Proceed with standard rates", "Request custom pricing", "Ask for discount", "I need to negotiate"]
           );
           setCurrentStep('pricingOptions');
+          saveCurrentCustomerData(); // Save progress
         }, 2000);
         break;
 
@@ -551,6 +640,7 @@ const ChatBot: React.FC = () => {
             ["Accept this offer", "I need more time to decide", "Discuss further modifications"]
           );
           setCurrentStep('negotiationResponse');
+          saveCurrentCustomerData(); // Save progress
         }, 3000);
         break;
 
@@ -576,6 +666,7 @@ const ChatBot: React.FC = () => {
             ["Yes, link this account", "No, create a new account"]
           );
           setCurrentStep('kycConfirmation');
+          saveCurrentCustomerData(); // Save progress
         }, 2000);
         break;
 
@@ -632,6 +723,57 @@ const ChatBot: React.FC = () => {
 
     console.log('Handling regular onboarding option...');
     switch (currentStep) {
+      case 'existingCustomer':
+        if (isReturningCustomer) {
+          // Handle returning customer options
+          if (option === "Continue previous session") {
+            addBotMessage(
+              `Perfect! Let's continue from where you left off.\n\n` +
+              `Based on your previous session, you were interested in ${currentCustomer?.serviceType || 'our services'}.\n\n` +
+              `Is there anything specific you'd like to update or shall we proceed with your previous selections?`,
+              ["Proceed with previous selections", "Update my information", "Review my progress"]
+            );
+          } else if (option === "Start fresh onboarding") {
+            setIsReturningCustomer(false);
+            setCurrentCustomer(null);
+            setMerchantData({
+              name: merchantData.name,
+              businessName: merchantData.businessName,
+              email: merchantData.email,
+              isExistingCustomer: false,
+            });
+            addBotMessage(
+              `No problem! Let's start fresh. 🆕\n\n` +
+              `Which services are you interested in?`,
+              ["Payment Gateway only", "POS Machine only", "Both PG and POS", "I need more information"]
+            );
+            setCurrentStep('serviceSelection');
+          } else if (option === "Check my status") {
+            const summary = getCustomerSummary(currentCustomer!);
+            addBotMessage(
+              `📊 **Your Current Status:**\n\n${summary}\n\n` +
+              `What would you like to do next?`,
+              ["Continue onboarding", "Update information", "Contact representative"]
+            );
+          }
+        } else {
+          // Handle new customer options
+          if (option === "Yes, I am" || option === "Yes, I am existing customer") {
+            setMerchantData(prev => ({ ...prev, isExistingCustomer: true }));
+            addBotMessage("Excellent! Please share your registered mobile number so I can fetch your KYC details.");
+            setCurrentStep('mobileNumber');
+          } else {
+            setMerchantData(prev => ({ ...prev, isExistingCustomer: false }));
+            addBotMessage(
+              `Welcome to our platform! 🎉 Since you're a new customer, I need to collect some additional business information.\n\n` +
+              `Please select your business category:`,
+              businessCategories
+            );
+            setCurrentStep('businessCategory');
+          }
+        }
+        break;
+
       case 'serviceSelection':
         if (option === "Payment Gateway only") {
           setMerchantData(prev => ({ ...prev, serviceType: 'payment-gateway' }));
@@ -655,6 +797,7 @@ const ChatBot: React.FC = () => {
               ["Starter Plan", "Business Plan", "Enterprise Plan", "Premium Plan", "I need custom pricing"]
             );
             setCurrentStep('pgOptions');
+            saveCurrentCustomerData(); // Save progress
           }, 1500);
         } else if (option === "POS Machine only") {
           setMerchantData(prev => ({ ...prev, serviceType: 'pos-machine' }));
@@ -678,6 +821,7 @@ const ChatBot: React.FC = () => {
               ["PAX A920 Pro", "Ingenico Move/5000", "Verifone V240m", "PAX S920", "I need more details"]
             );
             setCurrentStep('posOptions');
+            saveCurrentCustomerData(); // Save progress
           }, 1500);
         } else if (option === "Both PG and POS") {
           setMerchantData(prev => ({ ...prev, serviceType: 'both' }));
@@ -705,6 +849,7 @@ const ChatBot: React.FC = () => {
               ["Yes, proceed with bundle", "Show me individual pricing", "I need more information"]
             );
             setCurrentStep('pricingOptions');
+            saveCurrentCustomerData(); // Save progress
           }, 2000);
         } else if (option === "I need more information") {
           addBotMessage(
@@ -734,6 +879,7 @@ const ChatBot: React.FC = () => {
             ["Yes, I am existing customer", "No, I'm new customer"]
           );
           setCurrentStep('existingCustomer');
+          saveCurrentCustomerData(); // Save progress
         } else if (option === "I need more details") {
           addBotMessage(
             `I'd be happy to provide more details! Please tell me:\n\n` +
@@ -743,6 +889,7 @@ const ChatBot: React.FC = () => {
             `• Budget range?\n\n` +
             `Type your requirements and I'll recommend the best option.`
           );
+          saveCurrentCustomerData(); // Save progress
         }
         break;
 
@@ -755,17 +902,19 @@ const ChatBot: React.FC = () => {
             ["Yes, I am existing customer", "No, I'm new customer"]
           );
           setCurrentStep('existingCustomer');
+          saveCurrentCustomerData(); // Save progress
         } else if (option === "I need custom pricing") {
           addBotMessage(
             `Absolutely! I can help with custom pricing. 💰\n\n` +
             `Please share:\n` +
             `• Expected monthly transaction volume\n` +
-            `• Average transaction size\n` +
+            `• Number of locations/terminals needed\n` +
             `• Special features needed\n` +
             `• Integration requirements\n\n` +
             `Type your details and I'll create a customized proposal.`
           );
           setCurrentStep('negotiation');
+          saveCurrentCustomerData(); // Save progress
         }
         break;
 
@@ -789,6 +938,7 @@ const ChatBot: React.FC = () => {
         setMerchantData(prev => ({ ...prev, businessCategory: option }));
         addBotMessage("Excellent choice! What's your business annual turnover? Please type your response (e.g., 1-5 Cr, 5-10 Cr, 10+ Cr)");
         setCurrentStep('annualTurnover');
+        saveCurrentCustomerData(); // Save progress
         break;
 
       case 'pricingOptions':
@@ -809,13 +959,14 @@ const ChatBot: React.FC = () => {
           addBotMessage(
             `I'd be happy to help with custom pricing! 💰\n\n` +
             `Please tell me more about your specific requirements:\n` +
-            `• Expected monthly transaction volume?\n` +
-            `• Number of locations/terminals needed?\n` +
-            `• Any specific integrations required?\n` +
-            `• Timeline for implementation?\n\n` +
+            `• Expected monthly transaction volume\n` +
+            `• Number of locations/terminals needed\n` +
+            `• Any specific integrations required\n` +
+            `• Timeline for implementation\n\n` +
             `Type your requirements and I'll create a customized proposal.`
           );
           setCurrentStep('negotiation');
+          saveCurrentCustomerData(); // Save progress
         } else if (option === "Ask for discount") {
           addBotMessage(
             `I understand you're looking for better pricing! 💰\n\n` +
@@ -827,6 +978,7 @@ const ChatBot: React.FC = () => {
             ["Accept early bird discount", "Prefer annual payment discount", "Need volume-based pricing"]
           );
           setCurrentStep('negotiationResponse');
+          saveCurrentCustomerData(); // Save progress
         } else if (option === "I need to negotiate" || option === "I need more information") {
           addBotMessage(
             `Absolutely! I'm here to help find the best solution for your business. 🤝\n\n` +
@@ -834,6 +986,7 @@ const ChatBot: React.FC = () => {
             `What are your main concerns or requirements?`
           );
           setCurrentStep('negotiation');
+          saveCurrentCustomerData(); // Save progress
         }
         break;
 
@@ -863,6 +1016,7 @@ const ChatBot: React.FC = () => {
             `What specific modifications would you like to discuss? Please share your thoughts.`
           );
           setCurrentStep('negotiation');
+          saveCurrentCustomerData(); // Save progress
         }
         break;
 
@@ -912,6 +1066,7 @@ const ChatBot: React.FC = () => {
             ["Generate Complete PDF & Proceed"]
           );
           setCurrentStep('pdfGeneration');
+          saveCurrentCustomerData(); // Save progress
         } else {
           setMerchantData(prev => ({ ...prev, confirmLinking: false }));
           addBotMessage(
@@ -925,6 +1080,7 @@ const ChatBot: React.FC = () => {
             `Our KYC team will contact you within 24 hours to complete the verification process.`
           );
           setCurrentStep('completed');
+          saveCurrentCustomerData(); // Save progress
         }
         break;
 
@@ -960,6 +1116,31 @@ const ChatBot: React.FC = () => {
     
     // Generate a case number
     const caseNumber = `CASE${Date.now().toString().slice(-8)}`;
+    
+    // Mark onboarding as complete and save final customer data
+    const finalCustomerData: StoredCustomerData = {
+      id: currentCustomer?.id || generateCustomerId(),
+      name: merchantData.name,
+      businessName: merchantData.businessName,
+      email: merchantData.email,
+      mobileNumber: merchantData.mobileNumber,
+      serviceType: merchantData.serviceType,
+      selectedPOSModel: merchantData.selectedPOSModel,
+      selectedPGPlan: merchantData.selectedPGPlan,
+      businessCategory: merchantData.businessCategory,
+      annualTurnover: merchantData.annualTurnover,
+      onboardingStep: 'completed',
+      lastVisit: new Date(),
+      conversationHistory: currentCustomer?.conversationHistory || [],
+      isOnboardingComplete: true,
+      assignedRepresentative: {
+        name: "Mr. Devesh Kumar",
+        mobile: "+919871299447"
+      }
+    };
+    
+    saveCustomerData(finalCustomerData);
+    setCurrentCustomer(finalCustomerData);
     
     // Add congratulatory image first
     const congratsMessage: ChatMessageType = {
@@ -1043,8 +1224,13 @@ const ChatBot: React.FC = () => {
     console.log('Setting isAIMode to true');
     setIsAIMode(true);
     
-    const welcomeMessage = "🤖 Hi! I'm your AI assistant. Ask me anything about the merchant onboarding process!";
-    const options = ["What documents do I need?", "How long does it take?", "What are the costs?", "Continue with onboarding"];
+    const welcomeMessage = currentCustomer 
+      ? `🤖 Hi ${currentCustomer.name}! I'm your AI assistant. I have access to your previous onboarding information. What would you like to know?`
+      : "🤖 Hi! I'm your AI assistant. Ask me anything about the merchant onboarding process!";
+    
+    const options = currentCustomer 
+      ? ["What's my current status?", "Contact my representative", "What documents do I need?", "Continue with onboarding"]
+      : ["What documents do I need?", "How long does it take?", "What are the costs?", "Continue with onboarding"];
     
     console.log('Adding AI welcome message');
     addBotMessage(welcomeMessage, options, true);
@@ -1056,6 +1242,14 @@ const ChatBot: React.FC = () => {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Merchant Onboarding</h1>
           <p className="text-gray-600">POS & Payment Gateway Services</p>
+          {currentCustomer && (
+            <div className="mt-2 px-4 py-2 bg-blue-100 rounded-lg inline-block">
+              <p className="text-sm text-blue-800">
+                👋 Welcome back, {currentCustomer.name}! 
+                <span className="ml-2 text-xs">ID: {currentCustomer.id}</span>
+              </p>
+            </div>
+          )}
         </div>
 
         <Card className="shadow-xl border-0">
