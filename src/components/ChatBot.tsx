@@ -11,14 +11,6 @@ import VoiceInput from './VoiceInput';
 import { ChatMessage as ChatMessageType, MerchantData, OnboardingStep, KYCData } from '@/types/merchant';
 import { generateMerchantOnboardingPDF } from '@/utils/pdfGenerator';
 import { getMerchantOnboardingResponse } from '@/utils/aiHelper';
-import { 
-  saveCustomerData, 
-  getCustomerByEmail, 
-  updateCustomerProgress, 
-  generateCustomerId, 
-  getCustomerSummary,
-  StoredCustomerData 
-} from '@/utils/customerStorage';
 
 const ChatBot: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
@@ -36,10 +28,6 @@ const ChatBot: React.FC = () => {
   const [currentUploadType, setCurrentUploadType] = useState<'gst' | 'pan' | 'incorporation' | 'moa'>('gst');
   const [isAIMode, setIsAIMode] = useState(false);
   const [messageCounter, setMessageCounter] = useState(0);
-  const [currentCustomer, setCurrentCustomer] = useState<StoredCustomerData | null>(null);
-  const [isReturningCustomer, setIsReturningCustomer] = useState(false);
-  const [statusCheckContact, setStatusCheckContact] = useState(''); // Store email/mobile for status checking
-  const [isStatusCheck, setIsStatusCheck] = useState(false); // Track if we're in status check mode
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Enhanced mock KYC data with more comprehensive information
@@ -290,72 +278,16 @@ const ChatBot: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
-  const checkForReturningCustomer = () => {
-    const email = inputValue.trim().toLowerCase();
-    const emailRegex = /\S+@\S+\.\S+/.test(email);
-    
-    if (emailRegex) {
-      const existingCustomer = getCustomerByEmail(email);
-      if (existingCustomer) {
-        console.log('Found returning customer:', existingCustomer);
-        setCurrentCustomer(existingCustomer);
-        setIsReturningCustomer(true);
-        
-        // Update merchant data with stored information
-        setMerchantData({
-          name: existingCustomer.name,
-          businessName: existingCustomer.businessName,
-          email: existingCustomer.email,
-          mobileNumber: existingCustomer.mobileNumber,
-          serviceType: existingCustomer.serviceType,
-          selectedPOSModel: existingCustomer.selectedPOSModel,
-          selectedPGPlan: existingCustomer.selectedPGPlan,
-          businessCategory: existingCustomer.businessCategory,
-          annualTurnover: existingCustomer.annualTurnover,
-          isExistingCustomer: true
-        });
-        
-        return true;
-      }
-    }
-    return false;
-  };
-
-  const saveCurrentCustomerData = () => {
-    if (!merchantData.email) return;
-    
-    const customerData: StoredCustomerData = {
-      id: currentCustomer?.id || generateCustomerId(),
-      name: merchantData.name,
-      businessName: merchantData.businessName,
-      email: merchantData.email,
-      mobileNumber: merchantData.mobileNumber,
-      serviceType: merchantData.serviceType,
-      selectedPOSModel: merchantData.selectedPOSModel,
-      selectedPGPlan: merchantData.selectedPGPlan,
-      businessCategory: merchantData.businessCategory,
-      annualTurnover: merchantData.annualTurnover,
-      onboardingStep: currentStep,
-      lastVisit: new Date(),
-      conversationHistory: currentCustomer?.conversationHistory || [],
-      isOnboardingComplete: currentStep === 'completed',
-      assignedRepresentative: currentCustomer?.assignedRepresentative || {
-        name: "Mr. Devesh Kumar",
-        mobile: "+919871299447"
-      }
-    };
-    
-    saveCustomerData(customerData);
-    setCurrentCustomer(customerData);
-  };
-
   useEffect(() => {
-    // Initialize with the new welcome flow
+    // Initialize with welcome message
     addBotMessage(
-      "Welcome! 🎉 I'm here to help you with our merchant services.\n\n" +
-      "Are you looking to check your existing merchant application status, or are you a new customer interested in our services?",
-      ["Check application status", "I'm a new customer", "I need more information"]
+      "Welcome to our Merchant Onboarding! 🎉 I'll help you get set up with our POS and Payment Gateway services. Let's start with some basic information.",
+      []
     );
+    setTimeout(() => {
+      addBotMessage("What's your full name?", []);
+      setCurrentStep('name');
+    }, 1000);
   }, []);
 
   const addBotMessage = (text: string, options: string[] = [], isAIResponse = false) => {
@@ -388,11 +320,9 @@ const ChatBot: React.FC = () => {
     console.log('=== AI QUESTION HANDLER ===');
     console.log('Question received:', question);
     console.log('Current AI mode:', isAIMode);
-    console.log('Current customer:', currentCustomer);
     
     try {
-      // Pass customer data to AI helper for personalized responses
-      const aiResponse = getMerchantOnboardingResponse(question, currentCustomer);
+      const aiResponse = getMerchantOnboardingResponse(question);
       console.log('AI response generated:', aiResponse.substring(0, 100) + '...');
       
       addBotMessage(aiResponse, ["Continue with onboarding", "Ask another question"], true);
@@ -491,9 +421,6 @@ const ChatBot: React.FC = () => {
         }, 2000);
         break;
     }
-    
-    // Save progress after file upload
-    saveCurrentCustomerData();
   };
 
   // Handle voice input
@@ -533,28 +460,6 @@ const ChatBot: React.FC = () => {
 
     console.log('Processing as regular onboarding step...');
     switch (currentStep) {
-      case 'statusCheckContact':
-        // Handle email/mobile input for status checking
-        const isEmail = /\S+@\S+\.\S+/.test(userInput);
-        const isMobile = /^\d{10}$/.test(userInput.replace(/\D/g, ''));
-        
-        if (!isEmail && !isMobile) {
-          addBotMessage("Please enter a valid email address or 10-digit mobile number.");
-          break;
-        }
-        
-        setStatusCheckContact(userInput);
-        addBotMessage(
-          `🔐 Sending OTP to your ${isEmail ? 'email' : 'mobile number'}: ${userInput}\n\n` +
-          `Please enter the OTP to verify your identity and access your application status.`
-        );
-        
-        setTimeout(() => {
-          setShowOTPVerification(true);
-          setCurrentStep('statusOTPVerification');
-        }, 1000);
-        break;
-
       case 'name':
         setMerchantData(prev => ({ ...prev, name: userInput }));
         addBotMessage(`Nice to meet you, ${userInput}! What's your business name?`);
@@ -572,36 +477,19 @@ const ChatBot: React.FC = () => {
           addBotMessage("Please enter a valid email address.");
           break;
         }
-        
         setMerchantData(prev => ({ ...prev, email: userInput }));
-        addBotMessage("Perfect! What's your mobile number?");
-        setCurrentStep('mobileNumber');
-        break;
-
-      case 'mobileNumber':
-        if (!/^\d{10}$/.test(userInput.replace(/\D/g, ''))) {
-          addBotMessage("Please enter a valid 10-digit mobile number.");
-          break;
-        }
-        setMerchantData(prev => ({ ...prev, mobileNumber: userInput }));
         addBotMessage(
-          `Excellent! Now I have your basic information:\n\n` +
-          `👤 Name: ${merchantData.name}\n` +
-          `🏢 Business: ${merchantData.businessName}\n` +
-          `📧 Email: ${merchantData.email}\n` +
-          `📱 Mobile: ${userInput}\n\n` +
-          `Which services are you interested in? 🏪💳`,
+          `Perfect! Now, which services are you interested in? 🏪💳\n\n` +
+          `We offer both POS machines for in-store payments and Payment Gateway solutions for online transactions.`,
           ["Payment Gateway only", "POS Machine only", "Both PG and POS", "I need more information"]
         );
         setCurrentStep('serviceSelection');
-        saveCurrentCustomerData(); // Save progress
         break;
 
       case 'businessCategory':
         setMerchantData(prev => ({ ...prev, businessCategory: userInput }));
         addBotMessage("Great choice! What's your business annual turnover? Please type your response (e.g., 1-5 Cr, 5-10 Cr, 10+ Cr)");
         setCurrentStep('annualTurnover');
-        saveCurrentCustomerData(); // Save progress
         break;
 
       case 'annualTurnover':
@@ -639,7 +527,6 @@ const ChatBot: React.FC = () => {
             ["Proceed with standard rates", "Request custom pricing", "Ask for discount", "I need to negotiate"]
           );
           setCurrentStep('pricingOptions');
-          saveCurrentCustomerData(); // Save progress
         }, 2000);
         break;
 
@@ -664,282 +551,32 @@ const ChatBot: React.FC = () => {
             ["Accept this offer", "I need more time to decide", "Discuss further modifications"]
           );
           setCurrentStep('negotiationResponse');
-          saveCurrentCustomerData(); // Save progress
         }, 3000);
         break;
 
-      case 'existingCustomer':
-        if (option === "Yes, I am" || option === "Yes, I am existing customer") {
-          setMerchantData(prev => ({ ...prev, isExistingCustomer: true }));
-          addBotMessage("Excellent! Please share your registered mobile number so I can fetch your KYC details.");
-          setCurrentStep('mobileNumber');
-        } else {
-          setMerchantData(prev => ({ ...prev, isExistingCustomer: false }));
-          addBotMessage(
-            `Welcome to our platform! 🎉 Since you're a new customer, I need to collect some additional business information.\n\n` +
-            `Please select your business category:`,
-            businessCategories
-          );
-          setCurrentStep('businessCategory');
+      case 'mobileNumber':
+        if (!/^\d{10}$/.test(userInput.replace(/\D/g, ''))) {
+          addBotMessage("Please enter a valid 10-digit mobile number.");
+          break;
         }
-        break;
-
-      case 'serviceSelection':
-        if (option === "Payment Gateway only") {
-          setMerchantData(prev => ({ ...prev, serviceType: 'payment-gateway' }));
+        setMerchantData(prev => ({ ...prev, mobileNumber: userInput }));
+        addBotMessage("Let me fetch your KYC details... 🔍");
+        
+        setTimeout(() => {
+          setMerchantData(prev => ({ ...prev, kycData: mockKYCData }));
           addBotMessage(
-            `Excellent choice! 💳 Payment Gateway solutions are perfect for online businesses.\n\n` +
-            `Here are our Payment Gateway plans tailored for different business needs:`
+            `Great! I found your existing KYC details:\n\n` +
+            `📋 Name: ${mockKYCData.fullName}\n` +
+            `🏢 Business: ${mockKYCData.businessName}\n` +
+            `📄 Registration: ${mockKYCData.registrationNumber}\n` +
+            `📍 Address: ${mockKYCData.address}\n` +
+            `💳 Account: ${mockKYCData.accountNumber}\n` +
+            `✅ Status: ${mockKYCData.status}\n\n` +
+            `Would you like to link this account with your new business?`,
+            ["Yes, link this account", "No, create a new account"]
           );
-          
-          // Add PG plans table
-          const pgPlansMessage: ChatMessageType = {
-            id: `pg-plans-${Date.now()}`,
-            text: 'PG_PLANS_COMPONENT',
-            isBot: true,
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, pgPlansMessage]);
-          
-          setTimeout(() => {
-            addBotMessage(
-              `Which Payment Gateway plan best suits your business requirements?`,
-              ["Starter Plan", "Business Plan", "Enterprise Plan", "Premium Plan", "I need custom pricing"]
-            );
-            setCurrentStep('pgOptions');
-            saveCurrentCustomerData(); // Save progress
-          }, 1500);
-        } else if (option === "POS Machine only") {
-          setMerchantData(prev => ({ ...prev, serviceType: 'pos-machine' }));
-          addBotMessage(
-            `Great! 🏪 POS machines are essential for in-store transactions.\n\n` +
-            `Here are our top POS machine options with different features and pricing:`
-          );
-          
-          // Add POS options table
-          const posOptionsMessage: ChatMessageType = {
-            id: `pos-options-${Date.now()}`,
-            text: 'POS_OPTIONS_COMPONENT',
-            isBot: true,
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, posOptionsMessage]);
-          
-          setTimeout(() => {
-            addBotMessage(
-              `Which POS machine would work best for your business?`,
-              ["PAX A920 Pro", "Ingenico Move/5000", "Verifone V240m", "PAX S920", "I need more details"]
-            );
-            setCurrentStep('posOptions');
-            saveCurrentCustomerData(); // Save progress
-          }, 1500);
-        } else if (option === "Both PG and POS") {
-          setMerchantData(prev => ({ ...prev, serviceType: 'both' }));
-          addBotMessage(
-            `Perfect! 🌟 A complete payment solution with both POS and Payment Gateway.\n\n` +
-            `This gives you the flexibility to accept payments both online and offline. Let me show you our combined solutions.`
-          );
-          
-          // Show both options
-          const bothOptionsMessage: ChatMessageType = {
-            id: `both-options-${Date.now()}`,
-            text: 'BOTH_OPTIONS_COMPONENT',
-            isBot: true,
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, bothOptionsMessage]);
-          
-          setTimeout(() => {
-            addBotMessage(
-              `Since you need both services, we can offer:\n\n` +
-              `🎯 **Bundle Discount**: 20% off on combined services\n` +
-              `🔧 **Unified Setup**: Single integration for both POS and PG\n` +
-              `📊 **Consolidated Reporting**: One dashboard for all transactions\n\n` +
-              `Would you like to proceed with our bundle package?`,
-              ["Yes, proceed with bundle", "Show me individual pricing", "I need more information"]
-            );
-            setCurrentStep('pricingOptions');
-            saveCurrentCustomerData(); // Save progress
-          }, 2000);
-        } else if (option === "I need more information") {
-          addBotMessage(
-            `Of course! Let me explain our services:\n\n` +
-            `🏪 **POS Machine**: Physical device for in-store card payments\n` +
-            `• Accept all types of cards (Debit/Credit)\n` +
-            `• Contactless payments (NFC)\n` +
-            `• Receipt printing\n` +
-            `• Real-time transaction processing\n\n` +
-            `💳 **Payment Gateway**: Online payment processing\n` +
-            `• Accept payments on your website/app\n` +
-            `• Multiple payment options (Cards, UPI, Wallets)\n` +
-            `• Secure payment processing\n` +
-            `• Integration APIs\n\n` +
-            `Which one interests you more?`,
-            ["Payment Gateway only", "POS Machine only", "Both PG and POS"]
-          );
-        }
-        break;
-
-      case 'posOptions':
-        if (["PAX A920 Pro", "Ingenico Move/5000", "Verifone V240m", "PAX S920"].includes(option)) {
-          setMerchantData(prev => ({ ...prev, selectedPOSModel: option }));
-          addBotMessage(
-            `Excellent choice! ${option} is a great POS solution. 🎉\n\n` +
-            `Now let's check if you're an existing customer with us to proceed further.`,
-            ["Yes, I am existing customer", "No, I'm new customer"]
-          );
-          setCurrentStep('existingCustomer');
-          saveCurrentCustomerData(); // Save progress
-        } else if (option === "I need more details") {
-          addBotMessage(
-            `I'd be happy to provide more details! Please tell me:\n\n` +
-            `• What's your monthly transaction volume?\n` +
-            `• Do you need wireless/portable POS?\n` +
-            `• Any specific features required?\n` +
-            `• Budget range?\n\n` +
-            `Type your requirements and I'll recommend the best option.`
-          );
-          saveCurrentCustomerData(); // Save progress
-        }
-        break;
-
-      case 'pgOptions':
-        if (["Starter Plan", "Business Plan", "Enterprise Plan", "Premium Plan"].includes(option)) {
-          setMerchantData(prev => ({ ...prev, selectedPGPlan: option }));
-          addBotMessage(
-            `Perfect! ${option} selected. 🎯\n\n` +
-            `This plan will be great for your business needs. Let's check your customer status to proceed.`,
-            ["Yes, I am existing customer", "No, I'm new customer"]
-          );
-          setCurrentStep('existingCustomer');
-          saveCurrentCustomerData(); // Save progress
-        } else if (option === "I need custom pricing") {
-          addBotMessage(
-            `Absolutely! I can help with custom pricing. 💰\n\n` +
-            `Please share:\n` +
-            `• Expected monthly transaction volume\n` +
-            `• Number of locations/terminals needed\n` +
-            `• Special features needed\n` +
-            `• Integration requirements\n\n` +
-            `Type your details and I'll create a customized proposal.`
-          );
-          setCurrentStep('negotiation');
-          saveCurrentCustomerData(); // Save progress
-        }
-        break;
-
-      case 'negotiationResponse':
-        if (option === "Accept this offer" || option === "Accept early bird discount" || option === "Prefer annual payment discount") {
-          setMerchantData(prev => ({ ...prev, finalPricing: option }));
-          addBotMessage(
-            `Wonderful! 🎉 Your pricing is confirmed.\n\n` +
-            `Now let's proceed with the documentation. I'll need to collect some important documents to complete your onboarding.`
-          );
-          setTimeout(() => {
-            addBotMessage("Let's start with your GST certificate. Please upload it below:");
-            setCurrentUploadType('gst');
-            setShowFileUpload(true);
-            setCurrentStep('gstUpload');
-          }, 1000);
-        } else if (option === "I need more time to decide") {
-          addBotMessage(
-            `No problem at all! 😊 Take your time to review our offer.\n\n` +
-            `This special pricing will remain valid for the next 48 hours. You can contact me anytime to proceed.\n\n` +
-            `In the meantime, would you like me to send you a detailed proposal via email?`,
-            ["Yes, email me the proposal", "I'll contact you later", "Continue with standard pricing"]
-          );
-        } else if (option === "Discuss further modifications") {
-          addBotMessage(
-            `Of course! I'm here to find the perfect solution. 🤝\n\n` +
-            `What specific modifications would you like to discuss? Please share your thoughts.`
-          );
-          setCurrentStep('negotiation');
-          saveCurrentCustomerData(); // Save progress
-        }
-        break;
-
-      case 'evaluation':
-        if (option === "Download Complete Application PDF" || option === "Download Application PDF") {
-          console.log('Generating PDF with merchant data:', merchantData);
-          generateMerchantOnboardingPDF(merchantData);
-          addBotMessage(
-            `📄 Complete application PDF downloaded successfully!\n\n` +
-            `🔐 For digital sign-off and verification, I'm sending OTP to:\n` +
-            `📱 Mobile: ${merchantData.mobileNumber || merchantData.email}\n` +
-            `📧 Email: ${merchantData.email}\n\n` +
-            `Please enter both OTPs to complete your merchant onboarding.`
-          );
-          
-          setTimeout(() => {
-            setShowOTPVerification(true);
-            setCurrentStep('otpVerification');
-          }, 1000);
-        }
-        break;
-
-      case 'kycConfirmation':
-        if (option === "Yes, link this account") {
-          // Ensure complete KYC data is set with user's information
-          const updatedKYCData = {
-            ...mockKYCData,
-            fullName: merchantData.name,
-            businessName: merchantData.businessName
-          };
-          
-          setMerchantData(prev => ({ 
-            ...prev, 
-            confirmLinking: true, 
-            kycData: updatedKYCData 
-          }));
-          
-          addBotMessage(
-            `Perfect! ✅ Account linking confirmed.\n\n` +
-            `📄 Generating comprehensive merchant onboarding document with:\n` +
-            `• Your Business Information\n` +
-            `• KYC Details (GST: ${updatedKYCData.gstNumber}, PAN: ${updatedKYCData.panNumber})\n` +
-            `• Director Information (${updatedKYCData.directorDetails.length} directors)\n` +
-            `• Complete Shareholding Structure\n` +
-            `• Registration Details\n\n` +
-            `Click below to download and proceed with digital verification.`,
-            ["Generate Complete PDF & Proceed"]
-          );
-          setCurrentStep('pdfGeneration');
-          saveCurrentCustomerData(); // Save progress
-        } else {
-          setMerchantData(prev => ({ ...prev, confirmLinking: false }));
-          addBotMessage(
-            `No problem! We'll create a new account for your business.\n\n` +
-            `📋 Summary:\n` +
-            `• Name: ${merchantData.name}\n` +
-            `• Business: ${merchantData.businessName}\n` +
-            `• Email: ${merchantData.email}\n` +
-            `• Mobile: ${merchantData.mobileNumber}\n` +
-            `• Account Type: New Separate Account\n\n` +
-            `Our KYC team will contact you within 24 hours to complete the verification process.`
-          );
-          setCurrentStep('completed');
-          saveCurrentCustomerData(); // Save progress
-        }
-        break;
-
-      case 'pdfGeneration':
-        if (option === "Generate Complete PDF & Proceed" || option === "Generate PDF & Proceed") {
-          console.log('Generating comprehensive PDF with all data:', merchantData);
-          generateMerchantOnboardingPDF(merchantData);
-          
-          addBotMessage(
-            `📄 Comprehensive PDF downloaded successfully!\n\n` +
-            `🔐 For digital sign-off and verification, I'm sending OTP to:\n` +
-            `📱 Mobile: ${merchantData.mobileNumber}\n` +
-            `📧 Email: ${merchantData.email}\n\n` +
-            `Please enter both OTPs to complete your merchant onboarding.`
-          );
-          
-          setTimeout(() => {
-            setShowOTPVerification(true);
-            setCurrentStep('otpVerification');
-          }, 1000);
-        }
+          setCurrentStep('kycConfirmation');
+        }, 2000);
         break;
 
       default:
@@ -995,46 +632,6 @@ const ChatBot: React.FC = () => {
 
     console.log('Handling regular onboarding option...');
     switch (currentStep) {
-      case 'welcome':
-        if (option === "Check application status") {
-          setIsStatusCheck(true);
-          addBotMessage(
-            "📋 **Application Status Check**\n\n" +
-            "To access your merchant application status, I'll need to verify your identity.\n\n" +
-            "Please provide your registered email address or mobile number:"
-          );
-          setCurrentStep('statusCheckContact');
-        } else if (option === "I'm a new customer") {
-          setIsStatusCheck(false);
-          addBotMessage(
-            "🎉 **Welcome to our Merchant Services!**\n\n" +
-            "I'm excited to help you get started with our POS and Payment Gateway solutions.\n\n" +
-            "Let's begin with some basic information. What's your full name?"
-          );
-          setCurrentStep('name');
-        } else if (option === "I need more information") {
-          addBotMessage(
-            "Of course! Let me explain our services:\n\n" +
-            "🏪 **POS Machine Services:**\n" +
-            "• Physical devices for in-store card payments\n" +
-            "• Accept all types of cards (Debit/Credit)\n" +
-            "• Contactless payments (NFC)\n" +
-            "• Receipt printing and real-time processing\n\n" +
-            "💳 **Payment Gateway Services:**\n" +
-            "• Online payment processing for websites/apps\n" +
-            "• Multiple payment options (Cards, UPI, Wallets)\n" +
-            "• Secure payment processing with APIs\n" +
-            "• Detailed analytics and reporting\n\n" +
-            "📋 **Application Status Check:**\n" +
-            "• Track your existing applications\n" +
-            "• View approval status and next steps\n" +
-            "• Access your application documents\n\n" +
-            "What would you like to do?",
-            ["Check application status", "I'm a new customer", "Contact support"]
-          );
-        }
-        break;
-
       case 'serviceSelection':
         if (option === "Payment Gateway only") {
           setMerchantData(prev => ({ ...prev, serviceType: 'payment-gateway' }));
@@ -1058,7 +655,6 @@ const ChatBot: React.FC = () => {
               ["Starter Plan", "Business Plan", "Enterprise Plan", "Premium Plan", "I need custom pricing"]
             );
             setCurrentStep('pgOptions');
-            saveCurrentCustomerData(); // Save progress
           }, 1500);
         } else if (option === "POS Machine only") {
           setMerchantData(prev => ({ ...prev, serviceType: 'pos-machine' }));
@@ -1082,7 +678,6 @@ const ChatBot: React.FC = () => {
               ["PAX A920 Pro", "Ingenico Move/5000", "Verifone V240m", "PAX S920", "I need more details"]
             );
             setCurrentStep('posOptions');
-            saveCurrentCustomerData(); // Save progress
           }, 1500);
         } else if (option === "Both PG and POS") {
           setMerchantData(prev => ({ ...prev, serviceType: 'both' }));
@@ -1110,7 +705,6 @@ const ChatBot: React.FC = () => {
               ["Yes, proceed with bundle", "Show me individual pricing", "I need more information"]
             );
             setCurrentStep('pricingOptions');
-            saveCurrentCustomerData(); // Save progress
           }, 2000);
         } else if (option === "I need more information") {
           addBotMessage(
@@ -1140,7 +734,6 @@ const ChatBot: React.FC = () => {
             ["Yes, I am existing customer", "No, I'm new customer"]
           );
           setCurrentStep('existingCustomer');
-          saveCurrentCustomerData(); // Save progress
         } else if (option === "I need more details") {
           addBotMessage(
             `I'd be happy to provide more details! Please tell me:\n\n` +
@@ -1150,7 +743,6 @@ const ChatBot: React.FC = () => {
             `• Budget range?\n\n` +
             `Type your requirements and I'll recommend the best option.`
           );
-          saveCurrentCustomerData(); // Save progress
         }
         break;
 
@@ -1163,19 +755,17 @@ const ChatBot: React.FC = () => {
             ["Yes, I am existing customer", "No, I'm new customer"]
           );
           setCurrentStep('existingCustomer');
-          saveCurrentCustomerData(); // Save progress
         } else if (option === "I need custom pricing") {
           addBotMessage(
             `Absolutely! I can help with custom pricing. 💰\n\n` +
             `Please share:\n` +
             `• Expected monthly transaction volume\n` +
-            `• Number of locations/terminals needed\n` +
+            `• Average transaction size\n` +
             `• Special features needed\n` +
             `• Integration requirements\n\n` +
             `Type your details and I'll create a customized proposal.`
           );
           setCurrentStep('negotiation');
-          saveCurrentCustomerData(); // Save progress
         }
         break;
 
@@ -1199,71 +789,52 @@ const ChatBot: React.FC = () => {
         setMerchantData(prev => ({ ...prev, businessCategory: option }));
         addBotMessage("Excellent choice! What's your business annual turnover? Please type your response (e.g., 1-5 Cr, 5-10 Cr, 10+ Cr)");
         setCurrentStep('annualTurnover');
-        saveCurrentCustomerData(); // Save progress
         break;
 
-      case 'annualTurnover':
-        setMerchantData(prev => ({ ...prev, annualTurnover: option }));
+      case 'pricingOptions':
+        setMerchantData(prev => ({ ...prev, selectedPlan: option }));
         
-        // Show detailed pricing table after annual turnover
-        addBotMessage(
-          `Perfect! Based on your business profile, here are our detailed payment processing rates:\n\n` +
-          `Our comprehensive pricing covers all major payment methods including debit cards, credit cards, and net banking. ` +
-          `The rates vary based on the payment method and transaction amount.`
-        );
-        
-        // Add the pricing table as a special message
-        const pricingTableMessage: ChatMessageType = {
-          id: `pricing-table-${Date.now()}`,
-          text: '',
-          isBot: true,
-          timestamp: new Date(),
-        };
-        
-        setMessages(prev => [...prev, {
-          ...pricingTableMessage,
-          text: 'PRICING_TABLE_COMPONENT' // Special marker for rendering the table
-        }]);
-        
-        setTimeout(() => {
+        if (option === "Proceed with standard rates" || option === "Yes, proceed with bundle") {
           addBotMessage(
-            `Above you can see our complete pricing structure. The rates are competitive and transparent.\n\n` +
-            `Key highlights:\n` +
-            `• Debit card rates start from 1.9%\n` +
-            `• Credit card rates are standardized at 2.5%\n` +
-            `• All major banks' net banking supported\n` +
-            `• EMI options available\n\n` +
-            `Would you like to proceed with these rates or discuss customization?`,
-            ["Proceed with standard rates", "Request custom pricing", "Ask for discount", "I need to negotiate"]
+            `Perfect! 🎯 You've chosen to proceed with our ${merchantData.serviceType === 'both' ? 'bundle package' : 'standard pricing'}.\n\n` +
+            `Let's continue with the documentation process. I'll need to collect some important documents.`
           );
-          setCurrentStep('pricingOptions');
-          saveCurrentCustomerData(); // Save progress
-        }, 2000);
-        break;
-
-      case 'negotiation':
-        // Handle negotiation input
-        setMerchantData(prev => ({ ...prev, negotiationRequest: option }));
-        
-        addBotMessage(
-          `Thank you for your input! 💰 Let me discuss this with our pricing team...\n\n` +
-          `⏱️ Processing your request: "${option}"\n\n` +
-          `I'll get back to you with a customized offer shortly.`
-        );
-        
-        setTimeout(() => {
+          setTimeout(() => {
+            addBotMessage("Let's start with your GST certificate. Please upload it below:");
+            setCurrentUploadType('gst');
+            setShowFileUpload(true);
+            setCurrentStep('gstUpload');
+          }, 1000);
+        } else if (option === "Request custom pricing" || option === "Show me individual pricing") {
           addBotMessage(
-            `Great news! 🎉 Our team has reviewed your request and we can offer:\n\n` +
-            `✅ **Special Discount**: 15% off on all transaction rates\n` +
-            `✅ **Volume Discount**: Additional 0.2% reduction for high-volume transactions\n` +
-            `✅ **Free Setup**: No installation or setup charges\n` +
-            `✅ **Extended Support**: 24/7 priority customer support\n\n` +
-            `This offer is valid for the next 48 hours. Shall we proceed with the documentation?`,
-            ["Accept this offer", "I need more time to decide", "Discuss further modifications"]
+            `I'd be happy to help with custom pricing! 💰\n\n` +
+            `Please tell me more about your specific requirements:\n` +
+            `• Expected monthly transaction volume?\n` +
+            `• Number of locations/terminals needed?\n` +
+            `• Any specific integrations required?\n` +
+            `• Timeline for implementation?\n\n` +
+            `Type your requirements and I'll create a customized proposal.`
+          );
+          setCurrentStep('negotiation');
+        } else if (option === "Ask for discount") {
+          addBotMessage(
+            `I understand you're looking for better pricing! 💰\n\n` +
+            `Let me check what discounts we can offer:\n\n` +
+            `✅ **Early Bird Discount**: 10% off on all transaction rates\n` +
+            `✅ **Annual Payment**: Additional 15% off for yearly payment\n` +
+            `✅ **Volume Discount**: Based on your transaction volume\n\n` +
+            `Would you like to proceed with these discounts, or do you have other requirements?`,
+            ["Accept early bird discount", "Prefer annual payment discount", "Need volume-based pricing"]
           );
           setCurrentStep('negotiationResponse');
-          saveCurrentCustomerData(); // Save progress
-        }, 3000);
+        } else if (option === "I need to negotiate" || option === "I need more information") {
+          addBotMessage(
+            `Absolutely! I'm here to help find the best solution for your business. 🤝\n\n` +
+            `Please share your budget constraints or specific pricing expectations, and I'll work with our team to create a suitable offer.\n\n` +
+            `What are your main concerns or requirements?`
+          );
+          setCurrentStep('negotiation');
+        }
         break;
 
       case 'negotiationResponse':
@@ -1271,7 +842,7 @@ const ChatBot: React.FC = () => {
           setMerchantData(prev => ({ ...prev, finalPricing: option }));
           addBotMessage(
             `Wonderful! 🎉 Your pricing is confirmed.\n\n` +
-            `Now let's proceed with the documentation. I'll need to collect some important documents to complete your onboarding.`
+            `Now let's proceed with the documentation. I'll need to collect some important business documents to complete your onboarding.`
           );
           setTimeout(() => {
             addBotMessage("Let's start with your GST certificate. Please upload it below:");
@@ -1292,7 +863,6 @@ const ChatBot: React.FC = () => {
             `What specific modifications would you like to discuss? Please share your thoughts.`
           );
           setCurrentStep('negotiation');
-          saveCurrentCustomerData(); // Save progress
         }
         break;
 
@@ -1342,7 +912,6 @@ const ChatBot: React.FC = () => {
             ["Generate Complete PDF & Proceed"]
           );
           setCurrentStep('pdfGeneration');
-          saveCurrentCustomerData(); // Save progress
         } else {
           setMerchantData(prev => ({ ...prev, confirmLinking: false }));
           addBotMessage(
@@ -1356,7 +925,6 @@ const ChatBot: React.FC = () => {
             `Our KYC team will contact you within 24 hours to complete the verification process.`
           );
           setCurrentStep('completed');
-          saveCurrentCustomerData(); // Save progress
         }
         break;
 
@@ -1387,169 +955,61 @@ const ChatBot: React.FC = () => {
     setIsLoading(false);
   };
 
-  // Handle successful status check OTP verification
-  const handleStatusOTPVerifySuccess = () => {
+  const handleOTPVerifySuccess = () => {
     setShowOTPVerification(false);
     
-    // Look for customer by contact info
-    const customer = getCustomerByEmail(statusCheckContact) || 
-                    // If it's a mobile number, we'd need a different lookup method
-                    // For now, we'll simulate finding the customer
-                    (statusCheckContact.length === 10 ? 
-                     { // Mock customer data for mobile lookup
-                       id: 'DEMO123',
-                       name: 'John Smith',
-                       businessName: 'Smith Electronics Ltd',
-                       email: 'john@smithelectronics.com',
-                       mobileNumber: statusCheckContact,
-                       serviceType: 'both' as const,
-                       selectedPOSModel: 'PAX A920 Pro',
-                       selectedPGPlan: 'Business Plan',
-                       businessCategory: 'Retail & Consumer Goods',
-                       annualTurnover: '5-10 Cr',
-                       onboardingStep: 'completed',
-                       lastVisit: new Date(),
-                       conversationHistory: [],
-                       isOnboardingComplete: true,
-                       assignedRepresentative: {
-                         name: 'Mr. Devesh Kumar',
-                         mobile: '+919871299447'
-                       }
-                     } : null);
+    // Generate a case number
+    const caseNumber = `CASE${Date.now().toString().slice(-8)}`;
     
-    if (customer) {
-      setCurrentCustomer(customer);
-      
-      // Show application details and status
+    // Add congratulatory image first
+    const congratsMessage: ChatMessageType = {
+      id: `congrats-${Date.now()}`,
+      text: '',
+      isBot: true,
+      timestamp: new Date(),
+      image: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=300&fit=crop&crop=center'
+    };
+    setMessages(prev => [...prev, congratsMessage]);
+    
+    // Add formatted success message
+    setTimeout(() => {
       addBotMessage(
-        `✅ **Identity Verified Successfully!**\n\n` +
-        `📋 **Your Application Details:**\n\n` +
-        `👤 **Personal Information:**\n` +
-        `• Name: ${customer.name}\n` +
-        `• Business: ${customer.businessName}\n` +
-        `• Email: ${customer.email}\n` +
-        `• Mobile: ${customer.mobileNumber || 'Not provided'}\n\n` +
-        `🛠️ **Services Applied For:**\n` +
-        `• Service Type: ${customer.serviceType || 'Not specified'}\n` +
-        (customer.selectedPOSModel ? `• POS Model: ${customer.selectedPOSModel}\n` : '') +
-        (customer.selectedPGPlan ? `• PG Plan: ${customer.selectedPGPlan}\n` : '') +
-        (customer.businessCategory ? `• Business Category: ${customer.businessCategory}\n` : '') +
-        (customer.annualTurnover ? `• Annual Turnover: ${customer.annualTurnover}\n` : '') +
-        `\n📊 **Application Status:**\n` +
-        `• Current Status: ${customer.isOnboardingComplete ? '✅ **APPROVED & ACTIVE**' : '⏳ **IN PROGRESS**'}\n` +
-        `• Application ID: ${customer.id}\n` +
-        `• Last Updated: ${customer.lastVisit.toLocaleDateString()}\n` +
-        (customer.assignedRepresentative ? 
-          `• Representative: ${customer.assignedRepresentative.name} (${customer.assignedRepresentative.mobile})\n` : '') +
-        `\n${customer.isOnboardingComplete ? 
-          '🎉 **Congratulations!** Your merchant account is active and ready to use.' : 
-          '📞 Our team is processing your application and will contact you soon with updates.'}\n\n` +
-        `What would you like to do next?`,
-        customer.isOnboardingComplete ? 
-          ["Contact my representative", "View pricing details", "Request support", "Start new application"] :
-          ["Check detailed status", "Update information", "Contact support", "Continue application"]
+        `🎉 **CONGRATULATIONS!** 🎉\n\n` +
+        `✅ **Your Merchant Onboarding is Complete!**\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `📋 **Case Number: ${caseNumber}**\n\n` +
+        `👤 **Merchant Details:**\n` +
+        `• Name: ${merchantData.name}\n` +
+        `• Business: ${merchantData.businessName}\n` +
+        `• Email: ${merchantData.email}\n` +
+        `• Mobile: ${merchantData.mobileNumber}\n\n` +
+        `🏢 **Account Information:**\n` +
+        `• Linked Account: ${merchantData.kycData?.accountNumber}\n` +
+        `• GST Number: ${merchantData.kycData?.gstNumber}\n` +
+        `• PAN Number: ${merchantData.kycData?.panNumber}\n` +
+        `• Directors Verified: ${merchantData.kycData?.directorDetails?.length || 0}\n\n` +
+        `🔐 **Verification Status:**\n` +
+        `• Documents: ✅ Digitally Signed & Verified\n` +
+        `• OTP Verification: ✅ Successfully Completed\n` +
+        `• KYC Status: ✅ Approved\n\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+        `👨‍💼 **Assigned Merchant Representative:**\n` +
+        `• Name: Mr. Devesh Kumar\n` +
+        `• Mobile: +919871299447\n` +
+        `• Mr. Devesh Kumar will contact you soon and keep you posted with the status of your application.\n\n` +
+        `🚀 **What's Next?**\n\n` +
+        `Your POS and Payment Gateway services will be activated within **2-4 hours**.\n\n` +
+        `📧 You'll receive an email with:\n` +
+        `• Account activation details\n` +
+        `• POS setup instructions\n` +
+        `• Payment gateway configuration\n` +
+        `• 24/7 support contact information\n\n` +
+        `🎯 **Welcome to our merchant family!**\n` +
+        `Thank you for choosing us for your payment solutions. We're excited to help grow your business!\n\n` +
+        `📞 Need immediate assistance? Contact our support team at support@merchant.com`
       );
       setCurrentStep('completed');
-    } else {
-      addBotMessage(
-        `❌ **No Application Found**\n\n` +
-        `We couldn't find any merchant application associated with ${statusCheckContact}.\n\n` +
-        `This could mean:\n` +
-        `• You haven't submitted an application yet\n` +
-        `• The application was submitted with different contact details\n` +
-        `• There might be a typo in the provided information\n\n` +
-        `What would you like to do?`,
-        ["Try different email/mobile", "Start new application", "Contact support"]
-      );
-    }
-  };
-
-  // Modified OTP verification handler to distinguish between status check and regular onboarding
-  const handleOTPVerifySuccess = () => {
-    if (isStatusCheck) {
-      handleStatusOTPVerifySuccess();
-    } else {
-      // Regular onboarding OTP verification
-      setShowOTPVerification(false);
-      
-      // Generate a case number
-      const caseNumber = `CASE${Date.now().toString().slice(-8)}`;
-      
-      // Mark onboarding as complete and save final customer data
-      const finalCustomerData: StoredCustomerData = {
-        id: currentCustomer?.id || generateCustomerId(),
-        name: merchantData.name,
-        businessName: merchantData.businessName,
-        email: merchantData.email,
-        mobileNumber: merchantData.mobileNumber,
-        serviceType: merchantData.serviceType,
-        selectedPOSModel: merchantData.selectedPOSModel,
-        selectedPGPlan: merchantData.selectedPGPlan,
-        businessCategory: merchantData.businessCategory,
-        annualTurnover: merchantData.annualTurnover,
-        onboardingStep: 'completed',
-        lastVisit: new Date(),
-        conversationHistory: currentCustomer?.conversationHistory || [],
-        isOnboardingComplete: true,
-        assignedRepresentative: {
-          name: "Mr. Devesh Kumar",
-          mobile: "+919871299447"
-        }
-      };
-      
-      saveCustomerData(finalCustomerData);
-      setCurrentCustomer(finalCustomerData);
-      
-      // Add congratulatory image first
-      const congratsMessage: ChatMessageType = {
-        id: `congrats-${Date.now()}`,
-        text: '',
-        isBot: true,
-        timestamp: new Date(),
-        image: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=300&fit=crop&crop=center'
-      };
-      setMessages(prev => [...prev, congratsMessage]);
-      
-      // Add formatted success message
-      setTimeout(() => {
-        addBotMessage(
-          `🎉 **CONGRATULATIONS!** 🎉\n\n` +
-          `✅ **Your Merchant Onboarding is Complete!**\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `📋 **Case Number: ${caseNumber}**\n\n` +
-          `👤 **Merchant Details:**\n` +
-          `• Name: ${merchantData.name}\n` +
-          `• Business: ${merchantData.businessName}\n` +
-          `• Email: ${merchantData.email}\n` +
-          `• Mobile: ${merchantData.mobileNumber}\n\n` +
-          `🏢 **Account Information:**\n` +
-          `• Linked Account: ${merchantData.kycData?.accountNumber}\n` +
-          `• GST Number: ${merchantData.kycData?.gstNumber}\n` +
-          `• PAN Number: ${merchantData.kycData?.panNumber}\n` +
-          `• Directors Verified: ${merchantData.kycData?.directorDetails?.length || 0}\n\n` +
-          `🔐 **Verification Status:**\n` +
-          `• Documents: ✅ Digitally Signed & Verified\n` +
-          `• OTP Verification: ✅ Successfully Completed\n` +
-          `• KYC Status: ✅ Approved\n\n` +
-          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-          `👨‍💼 **Assigned Merchant Representative:**\n` +
-          `• Name: Mr. Devesh Kumar\n` +
-          `• Mobile: +919871299447\n` +
-          `• Mr. Devesh Kumar will contact you soon and keep you posted with the status of your application.\n\n` +
-          `🚀 **What's Next?**\n\n` +
-          `Your POS and Payment Gateway services will be activated within **2-4 hours**.\n\n` +
-          `📧 You'll receive an email with:\n` +
-          `• Account activation details\n` +
-          `• POS setup instructions\n` +
-          `• Payment gateway configuration\n` +
-          `• 24/7 support contact information\n\n` +
-          `🎯 **Welcome to our merchant family!**\n` +
-          `Thank you for choosing us for your payment solutions. We're excited to help grow your business!\n\n` +
-          `📞 Need immediate assistance? Contact our support team at support@merchant.com`
-        );
-        setCurrentStep('completed');
-      }, 1000);
-    }
+    }, 1000);
   };
 
   const handleResendOTP = async (type: 'mobile' | 'email') => {
@@ -1583,13 +1043,8 @@ const ChatBot: React.FC = () => {
     console.log('Setting isAIMode to true');
     setIsAIMode(true);
     
-    const welcomeMessage = currentCustomer 
-      ? `🤖 Hi ${currentCustomer.name}! I'm your AI assistant. I have access to your previous onboarding information. What would you like to know?`
-      : "🤖 Hi! I'm your AI assistant. Ask me anything about the merchant onboarding process!";
-    
-    const options = currentCustomer 
-      ? ["What's my current status?", "Contact my representative", "What documents do I need?", "Continue with onboarding"]
-      : ["What documents do I need?", "How long does it take?", "What are the costs?", "Continue with onboarding"];
+    const welcomeMessage = "🤖 Hi! I'm your AI assistant. Ask me anything about the merchant onboarding process!";
+    const options = ["What documents do I need?", "How long does it take?", "What are the costs?", "Continue with onboarding"];
     
     console.log('Adding AI welcome message');
     addBotMessage(welcomeMessage, options, true);
@@ -1601,14 +1056,6 @@ const ChatBot: React.FC = () => {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Merchant Onboarding</h1>
           <p className="text-gray-600">POS & Payment Gateway Services</p>
-          {currentCustomer && (
-            <div className="mt-2 px-4 py-2 bg-blue-100 rounded-lg inline-block">
-              <p className="text-sm text-blue-800">
-                👋 Welcome back, {currentCustomer.name}! 
-                <span className="ml-2 text-xs">ID: {currentCustomer.id}</span>
-              </p>
-            </div>
-          )}
         </div>
 
         <Card className="shadow-xl border-0">
@@ -1682,8 +1129,8 @@ const ChatBot: React.FC = () => {
             {showOTPVerification && (
               <div className="mb-4">
                 <OTPVerification
-                  mobileNumber={isStatusCheck ? (statusCheckContact.length === 10 ? statusCheckContact : '') : (merchantData.mobileNumber || merchantData.email || '')}
-                  email={isStatusCheck ? (statusCheckContact.includes('@') ? statusCheckContact : '') : merchantData.email}
+                  mobileNumber={merchantData.mobileNumber || merchantData.email || ''}
+                  email={merchantData.email}
                   onVerifySuccess={handleOTPVerifySuccess}
                   onResendOTP={handleResendOTP}
                 />
@@ -1704,16 +1151,13 @@ const ChatBot: React.FC = () => {
             <div ref={messagesEndRef} />
           </CardContent>
 
-          {currentStep !== 'completed' && currentStep !== 'otpVerification' && currentStep !== 'statusOTPVerification' && !showFileUpload && (
+          {currentStep !== 'completed' && currentStep !== 'otpVerification' && !showFileUpload && (
             <div className="p-4 border-t bg-white rounded-b-lg">
               <form onSubmit={handleSubmit} className="flex space-x-2">
                 <Input
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  placeholder={
-                    currentStep === 'statusCheckContact' ? "Enter your email or mobile number..." :
-                    isAIMode ? "Ask me anything about merchant onboarding..." : "Type your response..."
-                  }
+                  placeholder={isAIMode ? "Ask me anything about merchant onboarding..." : "Type your response..."}
                   disabled={isLoading}
                   className="flex-1"
                 />

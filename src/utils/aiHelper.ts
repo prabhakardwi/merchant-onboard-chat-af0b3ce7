@@ -1,54 +1,8 @@
 
-import { StoredCustomerData } from './customerStorage';
-
-export const getMerchantOnboardingResponse = (question: string, customerData?: StoredCustomerData | null): string => {
+export const getMerchantOnboardingResponse = (question: string): string => {
   const lowerQuestion = question.toLowerCase();
   
-  // Personalized responses for returning customers
-  if (customerData) {
-    if (lowerQuestion.includes('status') || lowerQuestion.includes('progress')) {
-      const summary = getCustomerProgressSummary(customerData);
-      return `📊 **Your Onboarding Status:**\n\n${summary}\n\n` +
-             `Need help with next steps or have any questions?`;
-    }
-    
-    if (lowerQuestion.includes('representative') || lowerQuestion.includes('contact')) {
-      if (customerData.assignedRepresentative) {
-        return `👨‍💼 **Your Assigned Representative:**\n\n` +
-               `• Name: ${customerData.assignedRepresentative.name}\n` +
-               `• Mobile: ${customerData.assignedRepresentative.mobile}\n\n` +
-               `Feel free to contact them directly for any assistance!`;
-      } else {
-        return `📞 **Representative Assignment:**\n\n` +
-               `Your representative will be assigned once your onboarding is complete.\n` +
-               `For now, you can contact our support team or continue with me for any questions.`;
-      }
-    }
-    
-    if (lowerQuestion.includes('my') && (lowerQuestion.includes('service') || lowerQuestion.includes('plan'))) {
-      let response = `🔍 **Your Selected Services:**\n\n`;
-      
-      if (customerData.serviceType) {
-        response += `🛠️ **Service Type:** ${customerData.serviceType}\n`;
-      }
-      
-      if (customerData.selectedPOSModel) {
-        response += `🏪 **POS Model:** ${customerData.selectedPOSModel}\n`;
-      }
-      
-      if (customerData.selectedPGPlan) {
-        response += `💳 **Payment Gateway Plan:** ${customerData.selectedPGPlan}\n`;
-      }
-      
-      if (!customerData.serviceType && !customerData.selectedPOSModel && !customerData.selectedPGPlan) {
-        response += `No services selected yet. Would you like to explore our options?`;
-      }
-      
-      return response;
-    }
-  }
-  
-  // Original responses for general questions
+  // Common merchant onboarding questions and responses
   if (lowerQuestion.includes('document') || lowerQuestion.includes('upload')) {
     return `📄 **Document Requirements:**\n\n` +
            `For merchant onboarding, you'll need to upload:\n` +
@@ -153,33 +107,6 @@ export const getMerchantOnboardingResponse = (question: string, customerData?: S
          `• Support and contact information\n` +
          `• Business categories\n` +
          `• Troubleshooting common issues\n\n` +
-         (customerData ? `• Your onboarding status and progress\n• Your assigned representative\n• Your selected services\n\n` : '') +
          `❓ **Try asking:** "What documents do I need?" or "How long does onboarding take?"\n\n` +
          `For specific technical issues, contact Mr. Devesh Kumar at +919871299447`;
-};
-
-const getCustomerProgressSummary = (customerData: StoredCustomerData): string => {
-  const progressSteps = customerData.conversationHistory.length;
-  const completionPercentage = customerData.isOnboardingComplete ? 100 : Math.min((progressSteps / 15) * 100, 95);
-  
-  let summary = `📊 **Progress:** ${Math.round(completionPercentage)}% Complete (${progressSteps} steps completed)\n\n`;
-  
-  if (customerData.conversationHistory.length > 0) {
-    const recentSteps = customerData.conversationHistory.slice(-3);
-    summary += `📍 **Recent Activity:**\n`;
-    recentSteps.forEach((step, index) => {
-      const date = step.timestamp.toLocaleDateString();
-      summary += `${index + 1}. ${step.step} - ${date}\n`;
-    });
-  }
-  
-  if (customerData.isOnboardingComplete) {
-    summary += `\n✅ **Status:** Onboarding Complete!\n`;
-    summary += `🎉 Welcome to our merchant family!`;
-  } else {
-    summary += `\n⏳ **Status:** In Progress\n`;
-    summary += `📞 Continue where you left off or ask me any questions!`;
-  }
-  
-  return summary;
 };
