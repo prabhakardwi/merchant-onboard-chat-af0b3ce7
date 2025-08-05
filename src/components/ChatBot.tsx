@@ -423,6 +423,13 @@ const ChatBot: React.FC = () => {
     }
   };
 
+  // Generate unique application reference number
+  const generateApplicationReferenceNumber = () => {
+    const timestamp = Date.now().toString();
+    const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `APP${timestamp.slice(-6)}${randomNum}`;
+  };
+
   // Handle voice input
   const handleVoiceInput = (voiceText: string) => {
     console.log('Voice input received:', voiceText);
@@ -462,8 +469,53 @@ const ChatBot: React.FC = () => {
     switch (currentStep) {
       case 'name':
         setMerchantData(prev => ({ ...prev, name: userInput }));
-        addBotMessage(`Nice to meet you, ${userInput}! What's your business name?`);
-        setCurrentStep('businessName');
+        addBotMessage(`Nice to meet you, ${userInput}! Now I need to collect some additional information.\n\nPlease provide your 10-digit mobile number:`);
+        setCurrentStep('mobileNumber');
+        break;
+
+      case 'mobileNumber':
+        if (!/^\d{10}$/.test(userInput.replace(/\D/g, ''))) {
+          addBotMessage("Please enter a valid 10-digit mobile number.");
+          break;
+        }
+        setMerchantData(prev => ({ ...prev, mobileNumber: userInput }));
+        addBotMessage("Great! Now please provide your PAN number (10 characters):");
+        setCurrentStep('panNumber');
+        break;
+
+      case 'panNumber':
+        if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(userInput.toUpperCase())) {
+          addBotMessage("Please enter a valid PAN number (e.g., ABCDE1234F).");
+          break;
+        }
+        setMerchantData(prev => ({ ...prev, panNumber: userInput.toUpperCase() }));
+        addBotMessage("Perfect! Now please provide your Pin-code (6 digits):");
+        setCurrentStep('pinCode');
+        break;
+
+      case 'pinCode':
+        if (!/^\d{6}$/.test(userInput.replace(/\D/g, ''))) {
+          addBotMessage("Please enter a valid 6-digit pin-code.");
+          break;
+        }
+        const referenceNumber = generateApplicationReferenceNumber();
+        setMerchantData(prev => ({ 
+          ...prev, 
+          pinCode: userInput,
+          applicationReferenceNumber: referenceNumber
+        }));
+        
+        addBotMessage(
+          `Excellent! Your application details have been recorded.\n\n` +
+          `📋 **Application Reference Number**: ${referenceNumber}\n\n` +
+          `📱 Sending OTP to ${merchantData.mobileNumber} for verification...`
+        );
+        
+        setTimeout(() => {
+          addBotMessage("Please enter the OTP sent to your mobile number:");
+          setShowOTPVerification(true);
+          setCurrentStep('otpVerification');
+        }, 2000);
         break;
 
       case 'businessName':
@@ -632,6 +684,31 @@ const ChatBot: React.FC = () => {
 
     console.log('Handling regular onboarding option...');
     switch (currentStep) {
+      case 'postOtpOptions':
+        if (option === "Get Started") {
+          addBotMessage(
+            `Excellent! Let's begin your merchant onboarding journey. 🚀\n\n` +
+            `I'll guide you through setting up your business profile and selecting the right payment solutions for your needs.\n\n` +
+            `Let's start with your business name:`
+          );
+          setCurrentStep('businessName');
+        } else if (option === "Start Later") {
+          addBotMessage(
+            `No problem! Your application has been saved with reference number: **${merchantData.applicationReferenceNumber}**\n\n` +
+            `✅ **What's been completed:**\n` +
+            `• Name: ${merchantData.name}\n` +
+            `• Mobile: ${merchantData.mobileNumber}\n` +
+            `• PAN: ${merchantData.panNumber}\n` +
+            `• Pin-code: ${merchantData.pinCode}\n` +
+            `• OTP Verification: ✅ Complete\n\n` +
+            `📧 You'll receive an email with next steps and a link to continue your application.\n\n` +
+            `💡 **Need help later?** Contact us at support@merchant.com or call our helpline.\n\n` +
+            `Thank you for choosing our services! 🙏`
+          );
+          setCurrentStep('completed');
+        }
+        break;
+
       case 'serviceSelection':
         if (option === "Payment Gateway only") {
           setMerchantData(prev => ({ ...prev, serviceType: 'payment-gateway' }));
@@ -1012,10 +1089,10 @@ const ChatBot: React.FC = () => {
     }, 1000);
   };
 
-  const handleResendOTP = async (type: 'mobile' | 'email') => {
-    addBotMessage(`🔄 Resending OTP to your ${type}...`);
+  const handleResendOTP = async () => {
+    addBotMessage(`🔄 Resending OTP to your mobile number...`);
     await new Promise(resolve => setTimeout(resolve, 1000));
-    addBotMessage(`✅ OTP sent to your ${type} successfully!`);
+    addBotMessage(`✅ OTP sent to your mobile number successfully!`);
   };
 
   const getUploadLabel = () => {
@@ -1129,8 +1206,7 @@ const ChatBot: React.FC = () => {
             {showOTPVerification && (
               <div className="mb-4">
                 <OTPVerification
-                  mobileNumber={merchantData.mobileNumber || merchantData.email || ''}
-                  email={merchantData.email}
+                  mobileNumber={merchantData.mobileNumber || ''}
                   onVerifySuccess={handleOTPVerifySuccess}
                   onResendOTP={handleResendOTP}
                 />

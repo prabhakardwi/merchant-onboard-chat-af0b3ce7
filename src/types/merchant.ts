@@ -5,6 +5,9 @@ export interface MerchantData {
   email: string;
   isExistingCustomer: boolean;
   mobileNumber?: string;
+  panNumber?: string;
+  pinCode?: string;
+  applicationReferenceNumber?: string;
   kycData?: KYCData;
   confirmLinking?: boolean;
   businessCategory?: string;
@@ -60,13 +63,17 @@ export interface ChatMessage {
 export type OnboardingStep = 
   | 'welcome'
   | 'name'
+  | 'mobileNumber'
+  | 'panNumber'
+  | 'pinCode'
+  | 'otpVerification'
+  | 'postOtpOptions'
   | 'businessName'
   | 'email'
   | 'serviceSelection'
   | 'posOptions'
   | 'pgOptions'
   | 'existingCustomer'
-  | 'mobileNumber'
   | 'kycConfirmation'
   | 'businessCategory'
   | 'annualTurnover'
@@ -79,6 +86,5 @@ export type OnboardingStep =
   | 'moaUpload'
   | 'evaluation'
   | 'pdfGeneration'
-  | 'otpVerification'
   | 'completed'
   | 'aiHelp';
