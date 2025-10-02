@@ -11,6 +11,7 @@ import VoiceInput from './VoiceInput';
 import { ChatMessage as ChatMessageType, MerchantData, OnboardingStep, KYCData } from '@/types/merchant';
 import { generateMerchantOnboardingPDF } from '@/utils/pdfGenerator';
 import { getMerchantOnboardingResponse } from '@/utils/aiHelper';
+import clickstartLogo from '@/assets/clickstart-logo.png';
 
 const ChatBot: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
@@ -1128,22 +1129,21 @@ const ChatBot: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen bg-background p-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Merchant Onboarding</h1>
-          <p className="text-gray-600">POS & Payment Gateway Services</p>
+          <img src={clickstartLogo} alt="ClickStart.ai" className="h-16 mx-auto mb-4" />
+          <p className="text-muted-foreground">POS & Payment Gateway Services</p>
         </div>
 
-        <Card className="shadow-xl border-0">
-          <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
-            <CardTitle className="text-center flex items-center justify-between">
+        <Card className="shadow-xl border-border bg-card">
+          <CardHeader className="bg-card border-b border-border rounded-t-lg">
+            <CardTitle className="text-center flex items-center justify-between text-foreground">
               <span>Onboarding Assistant</span>
               {!isAIMode && currentStep !== 'completed' && (
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-blue-600 border-white hover:bg-blue-50"
                   onClick={startAIMode}
                 >
                   🤖 Ask AI
@@ -1153,7 +1153,7 @@ const ChatBot: React.FC = () => {
             <ProgressBar currentStep={currentStep} />
           </CardHeader>
           
-          <CardContent className="h-96 overflow-y-auto p-6 bg-gray-50">
+          <CardContent className="h-96 overflow-y-auto p-6 bg-background">
             {messages.map((message) => {
               if (message.text === 'PRICING_TABLE_COMPONENT') {
                 return (
@@ -1193,11 +1193,11 @@ const ChatBot: React.FC = () => {
             
             {isLoading && (
               <div className="flex justify-start mb-4">
-                <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm">
+                <div className="bg-card border border-border rounded-lg px-4 py-3 shadow-sm">
                   <div className="flex space-x-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                   </div>
                 </div>
               </div>
@@ -1228,7 +1228,7 @@ const ChatBot: React.FC = () => {
           </CardContent>
 
           {currentStep !== 'completed' && currentStep !== 'otpVerification' && !showFileUpload && (
-            <div className="p-4 border-t bg-white rounded-b-lg">
+            <div className="p-4 border-t border-border bg-card rounded-b-lg">
               <form onSubmit={handleSubmit} className="flex space-x-2">
                 <Input
                   value={inputValue}
@@ -1245,7 +1245,6 @@ const ChatBot: React.FC = () => {
                 <Button 
                   type="submit" 
                   disabled={isLoading || !inputValue.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 transition-colors"
                 >
                   Send
                 </Button>
