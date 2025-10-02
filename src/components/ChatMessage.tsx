@@ -17,9 +17,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onOptionSelect }) =>
         className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
           message.isBot
             ? message.isAIResponse
-              ? 'bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 text-gray-800 shadow-sm'
-              : 'bg-white border border-gray-200 text-gray-800 shadow-sm'
-            : 'bg-blue-600 text-white shadow-md'
+              ? 'bg-secondary/50 border border-primary/30 text-foreground shadow-sm'
+              : 'bg-card border border-border text-foreground shadow-sm'
+            : 'bg-primary text-primary-foreground shadow-md'
         }`}
       >
         {message.image && (
@@ -35,7 +35,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onOptionSelect }) =>
         {message.text && (
           <div className="text-sm leading-relaxed whitespace-pre-line font-medium">
             {message.isAIResponse && (
-              <div className="flex items-center gap-2 mb-2 text-purple-600 font-semibold">
+              <div className="flex items-center gap-2 mb-2 text-primary font-semibold">
                 <span>🤖</span>
                 <span className="text-xs">AI Assistant</span>
               </div>
@@ -53,8 +53,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onOptionSelect }) =>
                 size="sm"
                 className={`w-full text-left justify-start transition-colors ${
                   message.isAIResponse 
-                    ? 'hover:bg-purple-50 border-purple-200' 
-                    : 'hover:bg-blue-50'
+                    ? 'hover:bg-primary/10 border-primary/30' 
+                    : 'hover:bg-primary/10'
                 }`}
                 onClick={() => onOptionSelect?.(option)}
               >
